@@ -34,6 +34,7 @@ public:
 	void display(Color pColor);
 	void add(Vec3f pPos, Vec3f pVel);
 	void add(DS4Particle pParticle);
+	inline size_t count() { return mParticles.size(); }
 
 private:
 	vector<DS4Particle> mParticles;

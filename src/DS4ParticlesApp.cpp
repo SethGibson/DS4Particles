@@ -5,6 +5,7 @@
 
 static Vec2i S_DEPTH_SIZE(480, 360);
 static Vec2i S_APP_SIZE(1280, 800);
+static size_t S_MAX_PARTICLES = 2500;
 void DS4ParticlesApp::prepareSettings(Settings *pSettings)
 {
 	pSettings->setWindowSize(S_APP_SIZE.x, S_APP_SIZE.y);
@@ -161,7 +162,7 @@ void DS4ParticlesApp::updateTextures()
 	while (did<(S_DEPTH_SIZE.x*S_DEPTH_SIZE.y))
 	{
 		float cDepthVal = (float)mDepthBuffer[did];
-		if (cDepthVal>mDepthMin&&cDepthVal<mDepthMax)
+		if (cDepthVal > mDepthMin&&cDepthVal < mDepthMax)
 			mDepthPixels[did] = (uint8_t)(lmap<float>(cDepthVal, mDepthMin, mDepthMax, 255, 0));
 		else
 			mDepthPixels[did] = 0;
@@ -203,11 +204,16 @@ void DS4ParticlesApp::updateTextures()
 			{
 				cv::Point cPoint = cKeep[vi];
 				uint16_t cZ = mPrevDepthBuffer[cPoint.y*S_DEPTH_SIZE.x + cPoint.x];
-				float cInPoint[] = { static_cast<float>(cPoint.x), static_cast<float>(cPoint.y), cZ }, cOutPoint[3];
-				DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint, cOutPoint);
-
-				mParticleSystem.add(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]),
-					Vec3f(randFloat(-1, 1), randFloat(-1, -5), randFloat(0, -2)));
+				if (cZ>mDepthMin&&cZ < mDepthMax)
+				{
+					float cInPoint[] = { static_cast<float>(cPoint.x), static_cast<float>(cPoint.y), cZ }, cOutPoint[3];
+					DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint, cOutPoint);
+					if (mParticleSystem.count() < S_MAX_PARTICLES)
+					{
+						if (cOutPoint[1]<50)
+							mParticleSystem.add(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]),Vec3f(randFloat(-1, 1), randFloat(-2, -6), randFloat(0, -1)));
+					}
+				}
 			}
 		}
 
@@ -227,16 +233,19 @@ void DS4ParticlesApp::updatePointCloud()
 	if (mContours.size() > 0)
 	{
 		mContourPoints.clear();
-		for (auto cit = mContours.begin(); cit != mContours.end(); ++cit)
+		for (auto cit = mContoursKeep.begin(); cit != mContoursKeep.end(); ++cit)
 		{
 			for (auto vit = cit->begin(); vit != cit->end(); ++vit)
 			{
 				int cX = vit->x;
 				int cY = vit->y;
 				uint16_t cZ = mDepthBuffer[cY*S_DEPTH_SIZE.x + cX];
-				float cInPoint[] = { static_cast<float>(cX), static_cast<float>(cY), cZ }, cOutPoint[3];
-				DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint, cOutPoint);
-				mContourPoints.push_back(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]));
+				if (cZ > mDepthMin&&cZ < mDepthMax)
+				{
+					float cInPoint[] = { static_cast<float>(cX), static_cast<float>(cY), cZ }, cOutPoint[3];
+					DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint, cOutPoint);
+					mContourPoints.push_back(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]));
+				}
 			}
 		}
 	}
@@ -249,15 +258,18 @@ void DS4ParticlesApp::updatePointCloud()
 		{
 			if (mMatCurrent.at<uint8_t>(dY, dX) > 0)
 			{
-				float cVal = (float)mDepthBuffer[dY*S_DEPTH_SIZE.x+dX];
-				float cInPoint[] = { static_cast<float>(dX), static_cast<float>(dY), cVal }, cOutPoint[3];
-				DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint, cOutPoint);
-				mCloudPoints.push_back(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]));
+				float cZ = (float)mDepthBuffer[dY*S_DEPTH_SIZE.x+dX];
+				if (cZ>mDepthMin&&cZ < mDepthMax)
+				{
+					float cInPoint[] = { static_cast<float>(dX), static_cast<float>(dY), cZ }, cOutPoint[3];
+					DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint, cOutPoint);
+					mCloudPoints.push_back(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]));
+				}
 			}
 		}
 	}
 
-	//mParticleSystem.step();
+	mParticleSystem.step();
 }
 #pragma endregion Update
 
@@ -331,26 +343,32 @@ void DS4ParticlesApp::drawRunning()
 
 	gl::enableAdditiveBlending();
 	gl::enable(GL_POINT_SIZE);
+
+	//Point Cloud
+	glPointSize(2.0f);
 	gl::begin(GL_POINTS);
 	gl::color(Color(mColorShift, 1-mColorShift, 1));
-	glPointSize(0.5f);
+
+
 	for (auto pit = mCloudPoints.begin(); pit != mCloudPoints.end(); ++pit)
 	{
 		gl::vertex(*pit);
 	}
 	gl::end();
 
+	//Lightning Bolts
+	glPointSize(4.0f);
 	gl::begin(GL_POINTS);
-	gl::color(ColorA(0.1f, 0.75f, 1, mColorShift));
-	glPointSize(20.0f);
-
+	gl::color(ColorA(1, 1 - mColorShift, mColorShift, 0.25f));
 	for (auto pit2 = mContourPoints.begin(); pit2 != mContourPoints.end(); ++pit2)
 	{
 		gl::vertex(*pit2);
 	}
 	gl::end();
 
-	//mParticleSystem.display(Color(mColorShift, 1 - mColorShift, 1));
+	//Particles
+	glPointSize(1.0f);
+	mParticleSystem.display(Color(1, 1 - mColorShift, mColorShift));
 	gl::popMatrices();
 }
 #pragma endregion Draw

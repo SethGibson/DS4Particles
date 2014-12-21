@@ -9,7 +9,7 @@ DS4Particle::DS4Particle()
 
 DS4Particle::DS4Particle(Vec3f pPos, Vec3f pVel) : PPosition(pPos), PVelocity(pVel), IsActive(true)
 {
-	mAge = randInt(10, 30);
+	mAge = randInt(60, 180);
 }
 
 DS4Particle::~DS4Particle()
@@ -26,7 +26,10 @@ void DS4Particle::step()
 	if (IsActive)
 	{
 		PPosition += PVelocity;
-		PVelocity *= 0.99f;
+		if (PPosition.y <= -280)
+			PVelocity *= Vec3f(0.5f, 0, 0.5f);
+		else
+			PVelocity *= 0.998f;
 	}
 }
 #pragma endregion DS4Particle
@@ -60,7 +63,7 @@ void DS4ParticleSystem::display(Color pColor)
 {
 	gl::begin(GL_POINTS);
 	gl::color(ColorA(pColor.r, pColor.g, pColor.b, 1.0f));
-	glPointSize(1.0f);
+	glPointSize(2.0f);
 	for (auto p : mParticles)
 	{
 		gl::vertex(p.PPosition);
