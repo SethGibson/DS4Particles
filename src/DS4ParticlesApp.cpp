@@ -182,6 +182,7 @@ void DS4ParticlesApp::updateTextures()
 		memcpy(mPrevDepthBuffer, mDepthBuffer, (size_t)(S_DEPTH_SIZE.x*S_DEPTH_SIZE.y*sizeof(uint16_t)));
 		cv::findContours(mMatDiff, mContours, CV_RETR_LIST, CV_CHAIN_APPROX_NONE);
 
+		
 		for (auto cContour : mContours)
 		{
 			if (cv::contourArea(cContour, false) > mSizeMin)
@@ -220,11 +221,11 @@ void DS4ParticlesApp::updateTextures()
 void DS4ParticlesApp::updatePointCloud()
 {
 	mColorShift = math<float>::abs(math<float>::sin(getElapsedFrames()*0.005f));
-
+	mContourPoints.clear();
 	// Lightning Bolts
-	if (mContours.size() > 0)
+	if (mContoursKeep.size() > 0)
 	{
-		mContourPoints.clear();
+
 		for (auto cit : mContoursKeep)
 		{
 			for (auto vit : cit)
