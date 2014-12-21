@@ -42,6 +42,7 @@ private:
 	void setupScene();
 	void updateTextures();
 	void updatePointCloud();
+	void updateCV();
 	void drawDebug();
 	void drawRunning();
 
