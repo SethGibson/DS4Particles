@@ -222,9 +222,12 @@ void DS4ParticlesApp::updatePointCloud()
 				int cX = vit->x;
 				int cY = vit->y;
 				uint16_t cZ = mDepthBuffer[cY*S_DEPTH_SIZE.x + cX];
-				float cInPoint[] = { static_cast<float>(cX), static_cast<float>(cY), cZ }, cOutPoint[3];
-				DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint, cOutPoint);
-				mContourPoints.push_back(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]));
+				if (cZ > mDepthMin&&cZ < mDepthMax)
+				{
+					float cInPoint[] = { static_cast<float>(cX), static_cast<float>(cY), cZ }, cOutPoint[3];
+					DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint, cOutPoint);
+					mContourPoints.push_back(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]));
+				}
 			}
 		}
 	}
