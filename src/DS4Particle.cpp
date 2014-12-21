@@ -1,4 +1,5 @@
 #include "DS4Particle.h"
+#include "cinder/gl/gl.h"
 
 #pragma region DS4Particle
 DS4Particle::DS4Particle()
@@ -6,9 +7,9 @@ DS4Particle::DS4Particle()
 
 }
 
-DS4Particle::DS4Particle(Vec3f pPos, Vec3f pVel, Color pCol) : PPosition(pPos), PVelocity(pVel), PColor(pCol), IsActive(true)
+DS4Particle::DS4Particle(Vec3f pPos, Vec3f pVel) : PPosition(pPos), PVelocity(pVel), IsActive(true)
 {
-	mAge = randInt(60, 180);
+	mAge = randInt(10, 30);
 }
 
 DS4Particle::~DS4Particle()
@@ -19,7 +20,7 @@ DS4Particle::~DS4Particle()
 
 void DS4Particle::step()
 {
-	--mAge;
+	mAge -= 1;
 	if (mAge <= 0)
 		IsActive = false;
 	if (IsActive)
@@ -43,12 +44,33 @@ DS4ParticleSystem::~DS4ParticleSystem()
 
 void DS4ParticleSystem::step()
 {
-
+	for (auto pit = mParticles.begin(); pit != mParticles.end();)
+	{
+		if (!pit->IsActive)
+			pit = mParticles.erase(pit);
+		else
+		{
+			pit->step();
+			++pit;
+		}
+	}
 }
 
-void DS4ParticleSystem::display()
+void DS4ParticleSystem::display(Color pColor)
 {
+	gl::begin(GL_POINTS);
+	gl::color(ColorA(pColor.r, pColor.g, pColor.b, 1.0f));
+	glPointSize(1.0f);
+	for (auto p : mParticles)
+	{
+		gl::vertex(p.PPosition);
+	}
+	gl::end();
+}
 
+void DS4ParticleSystem::add(Vec3f pPos, Vec3f pVel)
+{
+	mParticles.push_back(DS4Particle(pPos, pVel));
 }
 
 void DS4ParticleSystem::add(DS4Particle pParticle)

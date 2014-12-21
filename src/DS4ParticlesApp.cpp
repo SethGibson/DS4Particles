@@ -119,6 +119,7 @@ bool DS4ParticlesApp::setupDSAPI()
 void DS4ParticlesApp::setupScene()
 {
 	mDepthPixels = new uint8_t[S_DEPTH_SIZE.x*S_DEPTH_SIZE.y]{0};
+	mPrevDepthBuffer = new uint16_t[S_DEPTH_SIZE.x*S_DEPTH_SIZE.y];
 	mMatCurrent = cv::Mat::zeros(S_DEPTH_SIZE.y, S_DEPTH_SIZE.x, CV_8U(1));
 	mMatPrev = cv::Mat::zeros(S_DEPTH_SIZE.y, S_DEPTH_SIZE.x, CV_8U(1));
 
@@ -177,6 +178,7 @@ void DS4ParticlesApp::updateTextures()
 
 		cv::absdiff(mMatCurrent, mMatPrev, mMatDiff);
 		mMatCurrent.copyTo(mMatPrev);
+		memcpy(mPrevDepthBuffer, mDepthBuffer, (size_t)(S_DEPTH_SIZE.x*S_DEPTH_SIZE.y*sizeof(uint16_t)));
 		cv::findContours(mMatDiff, mContours, CV_RETR_LIST, CV_CHAIN_APPROX_NONE);
 
 		for (auto cContour : mContours)
@@ -197,7 +199,16 @@ void DS4ParticlesApp::updateTextures()
 
 		for (auto cKeep : mContoursKeep)
 		{
-			//spawn particles
+			for (int vi = 0; vi < cKeep.size();vi+=4)
+			{
+				cv::Point cPoint = cKeep[vi];
+				uint16_t cZ = mPrevDepthBuffer[cPoint.y*S_DEPTH_SIZE.x + cPoint.x];
+				float cInPoint[] = { static_cast<float>(cPoint.x), static_cast<float>(cPoint.y), cZ }, cOutPoint[3];
+				DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint, cOutPoint);
+
+				mParticleSystem.add(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]),
+					Vec3f(randFloat(-1, 1), randFloat(-1, -5), randFloat(0, -2)));
+			}
 		}
 
 		if (mIsDebug)
@@ -212,10 +223,11 @@ void DS4ParticlesApp::updatePointCloud()
 {
 	mColorShift = math<float>::abs(math<float>::sin(getElapsedFrames()*0.005f));
 
+	// Lightning Bolts
 	if (mContours.size() > 0)
 	{
 		mContourPoints.clear();
-		for (auto cit = mContoursKeep.begin(); cit != mContoursKeep.end(); ++cit)
+		for (auto cit = mContours.begin(); cit != mContours.end(); ++cit)
 		{
 			for (auto vit = cit->begin(); vit != cit->end(); ++vit)
 			{
@@ -229,6 +241,7 @@ void DS4ParticlesApp::updatePointCloud()
 		}
 	}
 
+	//PointCloud
 	mCloudPoints.clear();
 	for (int dY = 0; dY < S_DEPTH_SIZE.y; dY+=4)
 	{
@@ -243,6 +256,8 @@ void DS4ParticlesApp::updatePointCloud()
 			}
 		}
 	}
+
+	//mParticleSystem.step();
 }
 #pragma endregion Update
 
@@ -309,12 +324,13 @@ void DS4ParticlesApp::drawDebug()
 void DS4ParticlesApp::drawRunning()
 {
 	gl::clear(Color::black());
-	gl::enableAdditiveBlending();
-	gl::enable(GL_POINT_SIZE);
-
 	gl::setMatrices(mMayaCam.getCamera());
+
 	gl::pushMatrices();
 	gl::rotate(mArcball.getQuat());
+
+	gl::enableAdditiveBlending();
+	gl::enable(GL_POINT_SIZE);
 	gl::begin(GL_POINTS);
 	gl::color(Color(mColorShift, 1-mColorShift, 1));
 	glPointSize(0.5f);
@@ -333,6 +349,8 @@ void DS4ParticlesApp::drawRunning()
 		gl::vertex(*pit2);
 	}
 	gl::end();
+
+	//mParticleSystem.display(Color(mColorShift, 1 - mColorShift, 1));
 	gl::popMatrices();
 }
 #pragma endregion Draw

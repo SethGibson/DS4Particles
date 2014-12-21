@@ -54,13 +54,13 @@ private:
 	float mColorShift;
 	vector<Vec3f> mCloudPoints;
 	vector<Vec3f> mContourPoints;
-	vector<Vec3f> mParticles;
+	DS4ParticleSystem mParticleSystem;
 
 	//DS
 	DSAPIRef mDSAPI;
 	DSCalibIntrinsicsRectified mZIntrinsics;
 	uint8_t *mDepthPixels;
-	uint16_t *mDepthBuffer;
+	uint16_t *mDepthBuffer, *mPrevDepthBuffer;
 
 	//OpenCV
 	cv::Mat mMatCurrent;
