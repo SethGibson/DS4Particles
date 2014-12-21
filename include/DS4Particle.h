@@ -3,6 +3,7 @@
 
 #include "cinder/Vector.h"
 #include "cinder/Color.h"
+#include "cinder/Rand.h"
 
 using namespace ci;
 using namespace std;
@@ -10,9 +11,12 @@ class DS4Particle
 {
 public:
 	DS4Particle();
+	DS4Particle(Vec3f pPos, Vec3f pVel, Color pCol);
 	~DS4Particle();
 
 	void step();
+
+	bool IsActive;
 	Vec3f PPosition;
 	Vec3f PVelocity;
 	Color PColor;
@@ -29,6 +33,8 @@ public:
 
 	void step();
 	void display();
+	void add(Vec3f pPos, Vec3f pVel, Color pCol);
+	void add(DS4Particle pParticle);
 
 private:
 	vector<DS4Particle> mParticles;

@@ -14,16 +14,12 @@ void DS4ParticlesApp::prepareSettings(Settings *pSettings)
 
 void DS4ParticlesApp::setup()
 {
-	mIsDebug = true;
+	mIsDebug = false;
 	if (!setupDSAPI())
 		console() << "Error Starting DSAPI Session" << endl;
 
-	setupCVandGL();
+	setupScene();
 	setupGUI();
-}
-
-void DS4ParticlesApp::mouseDown( MouseEvent event )
-{
 }
 
 void DS4ParticlesApp::update()
@@ -35,23 +31,43 @@ void DS4ParticlesApp::update()
 			mDepthBuffer = mDSAPI->getZImage();
 			updateTextures();
 			updatePointCloud();
-			updateParticles();
 		}
 	}
 	mFPS = getAverageFps();
 }
 
+void DS4ParticlesApp::keyDown(KeyEvent pEvent)
+{
+	if (pEvent.getChar() == 'd')
+		mIsDebug = !mIsDebug;
+}
+
+void DS4ParticlesApp::mouseDown(MouseEvent pEvent)
+{
+	if (pEvent.isAltDown())
+		mMayaCam.mouseDown(pEvent.getPos());
+	else
+		mArcball.mouseDown(pEvent.getPos());
+}
+
+void DS4ParticlesApp::mouseDrag(MouseEvent pEvent)
+{
+	if (pEvent.isAltDown())
+		mMayaCam.mouseDrag(pEvent.getPos(), pEvent.isLeftDown(), pEvent.isMiddleDown(), pEvent.isRightDown());
+	else
+		mArcball.mouseDrag(pEvent.getPos());
+
+}
+
 void DS4ParticlesApp::draw()
 {
-	// clear out the window with black
-	gl::clear( Color( 0, 0, 0 ) ); 
-
 	if (mIsDebug)
 		drawDebug();
 	else
 		drawRunning();
 }
 
+#pragma region Setup
 bool DS4ParticlesApp::setupDSAPI()
 {
 	bool retVal = true;
@@ -100,27 +116,43 @@ bool DS4ParticlesApp::setupDSAPI()
 	return retVal;
 }
 
-void DS4ParticlesApp::setupCVandGL()
+void DS4ParticlesApp::setupScene()
 {
 	mDepthPixels = new uint8_t[S_DEPTH_SIZE.x*S_DEPTH_SIZE.y]{0};
 	mMatCurrent = cv::Mat::zeros(S_DEPTH_SIZE.y, S_DEPTH_SIZE.x, CV_8U(1));
 	mMatPrev = cv::Mat::zeros(S_DEPTH_SIZE.y, S_DEPTH_SIZE.x, CV_8U(1));
+
+	mCamera.setPerspective(45.0f, S_DEPTH_SIZE.x/(float)S_DEPTH_SIZE.y, 100, 4000);
+	mCamera.setEyePoint(Vec3f(0, 700, -700));
+	mCamera.setViewDirection(Vec3f(0, -0.5f, 1.0f));
+	mCamera.setWorldUp(Vec3f(0, 1, 0));
+	mMayaCam.setCurrentCam(mCamera);
+
+	mArcball.setWindowSize(getWindowSize());
+	mArcball.setCenter(Vec2f(getWindowWidth() / 2.0f, getWindowHeight() / 2.0f));
+	mArcball.setRadius(500);
+	mColorShift = 1;
 }
 
 void DS4ParticlesApp::setupGUI()
 {
 	mDepthMin = 0;
 	mDepthMax = 2000;
-	mSizeMin = 50;
+	mSizeMin = 250;
 	mThresh = 128;
+
+	mFramesSpawn = 5;
 	mGUI = params::InterfaceGl::create("Config", Vec2i(200, 200));
 	mGUI->addParam("Min Depth", &mDepthMin);
 	mGUI->addParam("Max Depth", &mDepthMax);
 	mGUI->addParam("Threshold", &mThresh);
-	mGUI->addParam("Min Blob Size", &mSizeMin);
+	mGUI->addParam("Min Poly Area", &mSizeMin);
+	mGUI->addParam("Spawn Time", &mFramesSpawn);
 	mGUI->addParam("Avg Framerate", &mFPS);
 }
+#pragma endregion Setup
 
+#pragma region Update
 void DS4ParticlesApp::updateTextures()
 {
 	int did = 0;
@@ -135,32 +167,55 @@ void DS4ParticlesApp::updateTextures()
 		did += 1;
 	}
 
-	//run cv opps
-	//get cv mats
 	mMatCurrent = cv::Mat(S_DEPTH_SIZE.y, S_DEPTH_SIZE.x, CV_8U(1), mDepthPixels);
 	cv::threshold(mMatCurrent, mMatCurrent, mThresh, 255, CV_THRESH_BINARY);
-	cv::absdiff(mMatPrev, mMatCurrent, mMatDiff);
-	
-	//diff contours gives us a shorter list to walk
-	mContours.clear();
-	cv::findContours(mMatDiff, mContours, CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE);
-
-	if (mIsDebug)
+	if (getElapsedFrames() % mFramesSpawn == 0)
 	{
-		mTexBase = gl::Texture(fromOcv(mMatCurrent));
-		mTexBlob = gl::Texture(fromOcv(mMatDiff));
-	}
+		mContours.clear();
+		mContoursKeep.clear();
+		mHulls.clear();
 
-	mMatCurrent.copyTo(mMatPrev);
+		cv::absdiff(mMatCurrent, mMatPrev, mMatDiff);
+		mMatCurrent.copyTo(mMatPrev);
+		cv::findContours(mMatDiff, mContours, CV_RETR_LIST, CV_CHAIN_APPROX_NONE);
+
+		for (auto cContour : mContours)
+		{
+			vector<cv::Point> cHull;
+			cv::convexHull(cContour, cHull);
+			if (cHull.size() > 3)
+			{
+				vector<cv::Point> cPoly;
+				cv::approxPolyDP(cHull, cPoly, 0, true);
+				if (cv::contourArea(cPoly, false) > mSizeMin)
+				{
+					mHulls.push_back(cHull);
+					mContoursKeep.push_back(cContour);
+				}
+			}
+		}
+
+		for (auto cKeep : mContoursKeep)
+		{
+			//spawn particles
+		}
+
+		if (mIsDebug)
+			mTexBlob = gl::Texture(fromOcv(mMatDiff));
+	}
+	
+	if (mIsDebug)
+		mTexBase = gl::Texture(fromOcv(mMatCurrent));
 }
 
 void DS4ParticlesApp::updatePointCloud()
 {
-	//get contour points
+	mColorShift = math<float>::abs(math<float>::sin(getElapsedFrames()*0.005f));
+
 	if (mContours.size() > 0)
 	{
 		mContourPoints.clear();
-		for (auto cit = mContours.begin(); cit != mContours.end(); ++cit)
+		for (auto cit = mContoursKeep.begin(); cit != mContoursKeep.end(); ++cit)
 		{
 			for (auto vit = cit->begin(); vit != cit->end(); ++vit)
 			{
@@ -169,38 +224,34 @@ void DS4ParticlesApp::updatePointCloud()
 				uint16_t cZ = mDepthBuffer[cY*S_DEPTH_SIZE.x + cX];
 				float cInPoint[] = { static_cast<float>(cX), static_cast<float>(cY), cZ }, cOutPoint[3];
 				DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint, cOutPoint);
-				mContourPoints.push_back(Vec3f(cOutPoint[0], cOutPoint[1], cOutPoint[2]));
+				mContourPoints.push_back(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]));
 			}
 		}
 	}
 
-	//get cloud points
 	mCloudPoints.clear();
-	int did = 0;
-	for (int dY = 0; dY < S_DEPTH_SIZE.y; ++dY)
+	for (int dY = 0; dY < S_DEPTH_SIZE.y; dY+=4)
 	{
-		for (int dX = 0; dX < S_DEPTH_SIZE.x; ++dX)
+		for (int dX = 0; dX < S_DEPTH_SIZE.x; dX+=4)
 		{
-			float cVal = (float)*(mDepthBuffer + did);
-			if (cVal>mDepthMin&&cVal < mDepthMax)
+			if (mMatCurrent.at<uint8_t>(dY, dX) > 0)
 			{
+				float cVal = (float)mDepthBuffer[dY*S_DEPTH_SIZE.x+dX];
 				float cInPoint[] = { static_cast<float>(dX), static_cast<float>(dY), cVal }, cOutPoint[3];
 				DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint, cOutPoint);
-				mCloudPoints.push_back(Vec3f(cOutPoint[0], cOutPoint[1], cOutPoint[2]));
+				mCloudPoints.push_back(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]));
 			}
 		}
 	}
 }
+#pragma endregion Update
 
-void DS4ParticlesApp::updateParticles()
-{
-
-}
-
+#pragma region Draw
 void DS4ParticlesApp::drawDebug()
 {
+	gl::clear(Color::black());
+	gl::setMatricesWindow(S_APP_SIZE.x, S_APP_SIZE.y);
 	gl::color(Color::white());
-
 	
 	if (mTexBase)
 		gl::draw(mTexBase, Rectf(0, 0, S_APP_SIZE.x / 2, S_APP_SIZE.y / 2));
@@ -215,8 +266,6 @@ void DS4ParticlesApp::drawDebug()
 		gl::begin(GL_POINTS);
 		glPointSize(2.0);
 
-		vector<cv::Point> cC = mContours[0];
-		
 		for (auto cit = mContours.begin(); cit != mContours.end(); ++cit)
 		{
 			for (auto vit = cit->begin(); vit != cit->end(); ++vit)
@@ -227,13 +276,66 @@ void DS4ParticlesApp::drawDebug()
 		gl::end();
 		gl::popMatrices();
 	}
+
+	if (mHulls.size() > 0)
+	{
+		gl::pushMatrices();
+		gl::translate(Vec2f(S_APP_SIZE.x / 2, 0));
+		gl::scale(Vec2f((S_APP_SIZE.x / (float)S_DEPTH_SIZE.x)*0.5f, (S_APP_SIZE.y / (float)S_DEPTH_SIZE.y)*0.5f));
+		gl::color(Color(1, 1, 0));
+		
+		for (auto cHull : mHulls)
+		{
+
+			gl::begin(GL_LINE_LOOP);
+			for (auto cPt : cHull)
+				gl::vertex(cPt.x, cPt.y);
+			gl::end();
+		}
+
+		gl::color(Color(1, 0, 1));
+		for (auto cContour : mContoursKeep)
+		{
+			gl::begin(GL_LINE_LOOP);
+			for (auto cPt : cContour)
+				gl::vertex(cPt.x, cPt.y);
+			gl::end();
+		}
+		gl::popMatrices();
+	}
 	mGUI->draw();
 }
 
 void DS4ParticlesApp::drawRunning()
 {
+	gl::clear(Color::black());
+	gl::enableAdditiveBlending();
+	gl::enable(GL_POINT_SIZE);
 
+	gl::setMatrices(mMayaCam.getCamera());
+	gl::pushMatrices();
+	gl::rotate(mArcball.getQuat());
+	gl::begin(GL_POINTS);
+	gl::color(Color(mColorShift, 1-mColorShift, 1));
+	glPointSize(0.5f);
+	for (auto pit = mCloudPoints.begin(); pit != mCloudPoints.end(); ++pit)
+	{
+		gl::vertex(*pit);
+	}
+	gl::end();
+
+	gl::begin(GL_POINTS);
+	gl::color(ColorA(0.1f, 0.75f, 1, mColorShift));
+	glPointSize(20.0f);
+
+	for (auto pit2 = mContourPoints.begin(); pit2 != mContourPoints.end(); ++pit2)
+	{
+		gl::vertex(*pit2);
+	}
+	gl::end();
+	gl::popMatrices();
 }
+#pragma endregion Draw
 
 void DS4ParticlesApp::shutdown()
 {

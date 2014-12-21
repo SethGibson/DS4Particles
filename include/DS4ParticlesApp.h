@@ -8,9 +8,11 @@
 #endif
 #include <memory>
 #include "cinder/app/AppNative.h"
+#include "cinder/Arcball.h"
 #include "cinder/Camera.h"
 #include "cinder/gl/gl.h"
 #include "cinder/gl/Texture.h"
+#include "cinder/MayaCamUI.h"
 #include "cinder/params/Params.h"
 #include "DSAPI.h"
 #include "CinderOpenCV.h"
@@ -21,30 +23,35 @@ using namespace ci::app;
 using namespace std;
 
 typedef shared_ptr<DSAPI> DSAPIRef;
-
 class DS4ParticlesApp : public AppNative
 {
 public:
 
 	void prepareSettings(Settings *pSettings);
 	void setup();
-	void mouseDown( MouseEvent event );	
 	void update();
+	void mouseDown(MouseEvent pEvent);
+	void mouseDrag(MouseEvent pEvent);
+	void keyDown(KeyEvent pEvent);
 	void draw();
 	void shutdown();
 
 private:
 	void setupGUI();
 	bool setupDSAPI();
-	void setupCVandGL();
+	void setupScene();
 	void updateTextures();
 	void updatePointCloud();
-	void updateParticles();
 	void drawDebug();
 	void drawRunning();
 
-	//Point cloud
+	//scene
+	Arcball mArcball;
+	MayaCamUI mMayaCam;
 	CameraPersp mCamera;
+
+	//Point cloud
+	float mColorShift;
 	vector<Vec3f> mCloudPoints;
 	vector<Vec3f> mContourPoints;
 	vector<Vec3f> mParticles;
@@ -60,11 +67,13 @@ private:
 	cv::Mat mMatPrev;
 	cv::Mat mMatDiff;
 	vector<vector<cv::Point>> mContours;
+	vector<vector<cv::Point>> mContoursKeep;
+	vector<vector<cv::Point>> mHulls;
 	vector<cv::Vec4i> mHierarchy;
 
 	//Debug
 	params::InterfaceGlRef mGUI;
-	int mDepthMin, mDepthMax;
+	int mDepthMin, mDepthMax, mFramesSpawn;
 	double mThresh, mSizeMin;
 	float mFPS;
 	bool mIsDebug;
