@@ -68,7 +68,6 @@ private:
 	cv::Mat mMatDiff;
 	vector<vector<cv::Point>> mContours;
 	vector<vector<cv::Point>> mContoursKeep;
-	vector<vector<cv::Point>> mHulls;
 	vector<cv::Vec4i> mHierarchy;
 
 	//Debug

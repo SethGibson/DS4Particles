@@ -171,11 +171,11 @@ void DS4ParticlesApp::updateTextures()
 
 	mMatCurrent = cv::Mat(S_DEPTH_SIZE.y, S_DEPTH_SIZE.x, CV_8U(1), mDepthPixels);
 	cv::threshold(mMatCurrent, mMatCurrent, mThresh, 255, CV_THRESH_BINARY);
+
 	if (getElapsedFrames() % mFramesSpawn == 0)
 	{
 		mContours.clear();
 		mContoursKeep.clear();
-		mHulls.clear();
 
 		cv::absdiff(mMatCurrent, mMatPrev, mMatDiff);
 		mMatCurrent.copyTo(mMatPrev);
@@ -184,17 +184,9 @@ void DS4ParticlesApp::updateTextures()
 
 		for (auto cContour : mContours)
 		{
-			vector<cv::Point> cHull;
-			cv::convexHull(cContour, cHull);
-			if (cHull.size() > 3)
+			if (cv::contourArea(cContour, false) > mSizeMin)
 			{
-				vector<cv::Point> cPoly;
-				cv::approxPolyDP(cHull, cPoly, 0, true);
-				if (cv::contourArea(cPoly, false) > mSizeMin)
-				{
-					mHulls.push_back(cHull);
-					mContoursKeep.push_back(cContour);
-				}
+				mContoursKeep.push_back(cContour);
 			}
 		}
 
@@ -233,12 +225,12 @@ void DS4ParticlesApp::updatePointCloud()
 	if (mContours.size() > 0)
 	{
 		mContourPoints.clear();
-		for (auto cit = mContoursKeep.begin(); cit != mContoursKeep.end(); ++cit)
+		for (auto cit : mContoursKeep)
 		{
-			for (auto vit = cit->begin(); vit != cit->end(); ++vit)
+			for (auto vit : cit)
 			{
-				int cX = vit->x;
-				int cY = vit->y;
+				int cX = vit.x;
+				int cY = vit.y;
 				uint16_t cZ = mDepthBuffer[cY*S_DEPTH_SIZE.x + cX];
 				if (cZ > mDepthMin&&cZ < mDepthMax)
 				{
@@ -304,23 +296,13 @@ void DS4ParticlesApp::drawDebug()
 		gl::popMatrices();
 	}
 
-	if (mHulls.size() > 0)
+	if (mContoursKeep.size() > 0)
 	{
 		gl::pushMatrices();
 		gl::translate(Vec2f(S_APP_SIZE.x / 2, 0));
 		gl::scale(Vec2f((S_APP_SIZE.x / (float)S_DEPTH_SIZE.x)*0.5f, (S_APP_SIZE.y / (float)S_DEPTH_SIZE.y)*0.5f));
 		gl::color(Color(1, 1, 0));
 		
-		for (auto cHull : mHulls)
-		{
-
-			gl::begin(GL_LINE_LOOP);
-			for (auto cPt : cHull)
-				gl::vertex(cPt.x, cPt.y);
-			gl::end();
-		}
-
-		gl::color(Color(1, 0, 1));
 		for (auto cContour : mContoursKeep)
 		{
 			gl::begin(GL_LINE_LOOP);
