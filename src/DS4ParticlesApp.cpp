@@ -18,6 +18,7 @@ void DS4ParticlesApp::prepareSettings(Settings *pSettings)
 void DS4ParticlesApp::setup()
 {
 	mIsDebug = false;
+	mCamInfo = false;
 	if (!setupDSAPI())
 		console() << "Error Starting DSAPI Session" << endl;
 
@@ -136,9 +137,9 @@ void DS4ParticlesApp::setupScene()
 	mMatCurrent = cv::Mat::zeros(S_DEPTH_SIZE.y, S_DEPTH_SIZE.x, CV_8U(1));
 	mMatPrev = cv::Mat::zeros(S_DEPTH_SIZE.y, S_DEPTH_SIZE.x, CV_8U(1));
 
-	mCamera.setPerspective(32.0f, getWindowAspectRatio(), 100, 4000);
-	mCamera.setEyePoint(Vec3f(0, 975, -590));
-	mCamera.setViewDirection(Vec3f(0, -0.6f, 0.8f));
+	mCamera.setPerspective(45.0f, getWindowAspectRatio(), 100, 4000);
+	mCamera.setEyePoint(Vec3f(0, 705, -731));
+	mCamera.setViewDirection(Vec3f(0, -0.43f, 0.903f));
 	mCamera.setWorldUp(Vec3f(0, 1, 0));
 	mMayaCam.setCurrentCam(mCamera);
 
@@ -187,7 +188,7 @@ void DS4ParticlesApp::setupGUI()
 	mGUI->addSeparator();
 	mGUI->addText("Particle Params");
 	mGUI->addParam("Particle Count", &mNumParticles);
-	mGUI->addParam("Point Size", &mParticleSize);
+	mGUI->addParam("Particle Size", &mParticleSize);
 	mGUI->addParam("Min Age", &mAgeMin);
 	mGUI->addParam("Max Age", &mAgeMax);
 	mGUI->addParam("Spawn Rate", &mFramesSpawn);
@@ -251,8 +252,6 @@ void DS4ParticlesApp::updateCV()
 		mContourPoints.clear();
 
 		cv::absdiff(mMatCurrent, mMatPrev, mMatDiff);
-		mMatCurrent.copyTo(mMatPrev);
-		memcpy(mPrevDepthBuffer, mDepthBuffer, (size_t)(S_DEPTH_SIZE.x*S_DEPTH_SIZE.y*sizeof(uint16_t)));
 		cv::findContours(mMatDiff, mContours, CV_RETR_LIST, CV_CHAIN_APPROX_NONE);
 
 		for (auto cContour : mContours)
@@ -285,8 +284,11 @@ void DS4ParticlesApp::updateCV()
 			}
 		}
 
+		mMatCurrent.copyTo(mMatPrev);
+		memcpy(mPrevDepthBuffer, mDepthBuffer, (size_t)(S_DEPTH_SIZE.x*S_DEPTH_SIZE.y*sizeof(uint16_t)));
 		if (mIsDebug)
 			mTexBlob = gl::Texture(fromOcv(mMatDiff));
+
 	}
 
 	if (mIsDebug)
@@ -318,12 +320,10 @@ void DS4ParticlesApp::drawDebug()
 		gl::begin(GL_POINTS);
 		glPointSize(2.0);
 
-		for (auto cit = mContours.begin(); cit != mContours.end(); ++cit)
+		for (auto cit : mContours)
 		{
-			for (auto vit = cit->begin(); vit != cit->end(); ++vit)
-			{
-				gl::vertex(vit->x, vit->y);
-			}
+			for (auto vit : cit)
+				gl::vertex(vit.x, vit.y);
 		}
 		gl::end();
 		gl::popMatrices();
@@ -338,10 +338,13 @@ void DS4ParticlesApp::drawDebug()
 		
 		for (auto cContour : mContours)
 		{
-			gl::begin(GL_LINE_LOOP);
-			for (auto cPt : cContour)
-				gl::vertex(cPt.x, cPt.y);
-			gl::end();
+			if (cv::contourArea(cContour, false) > mSizeMin)
+			{
+				gl::begin(GL_LINE_LOOP);
+				for (auto cPt : cContour)
+					gl::vertex(cPt.x, cPt.y);
+				gl::end();
+			}
 		}
 		gl::popMatrices();
 	}
@@ -360,7 +363,7 @@ void DS4ParticlesApp::drawRunning()
 	gl::setMatrices(mMayaCam.getCamera());
 	gl::pushMatrices();
 	gl::rotate(mArcball.getQuat());
-
+	gl::scale(-1, 1, 1);
 	gl::enableAdditiveBlending();
 	gl::enable(GL_POINT_SIZE);
 
@@ -400,16 +403,24 @@ void DS4ParticlesApp::drawRunning()
 	mParticleSystem.display();
 	gl::popMatrices();
 
-	//gl::setMatricesWindow(S_APP_SIZE.x, S_APP_SIZE.y);
-	//Vec3f cEyePoint(mMayaCam.getCamera().getEyePoint());
-	//Vec3f cViewDir(mMayaCam.getCamera().getViewDirection());
-
-	//string cEyeStr("Eye Point: " + to_string(cEyePoint.x) + " " + to_string(cEyePoint.y) + " " + to_string(cEyePoint.z));
-	//string cViewStr("Eye Point: " + to_string(cViewDir.x) + " " + to_string(cViewDir.y) + " " + to_string(cViewDir.z));
-
-	//gl::drawString(cEyeStr, Vec2i(20, 20));
-	//gl::drawString(cViewStr, Vec2i(20, 40));
+	if (mCamInfo)
+		drawCamInfo();
 }
+
+void DS4ParticlesApp::drawCamInfo()
+{
+	gl::setMatricesWindow(S_APP_SIZE.x, S_APP_SIZE.y);
+	Vec3f cEyePoint(mMayaCam.getCamera().getEyePoint());
+	Vec3f cViewDir(mMayaCam.getCamera().getViewDirection());
+
+	string cEyeStr("Eye Point: " + to_string(cEyePoint.x) + " " + to_string(cEyePoint.y) + " " + to_string(cEyePoint.z));
+	string cViewStr("Eye Point: " + to_string(cViewDir.x) + " " + to_string(cViewDir.y) + " " + to_string(cViewDir.z));
+
+	gl::drawString(cEyeStr, Vec2i(20, 20));
+	gl::drawString(cViewStr, Vec2i(20, 40));
+}
+
+
 #pragma endregion Draw
 
 void DS4ParticlesApp::shutdown()

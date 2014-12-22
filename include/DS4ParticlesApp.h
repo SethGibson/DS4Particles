@@ -47,7 +47,7 @@ private:
 	void updateCV();
 	void drawDebug();
 	void drawRunning();
-
+	void drawCamInfo();
 	//Colors
 	Color IntelBlue;
 	Color IntelPaleBlue;	
@@ -95,6 +95,9 @@ private:
 	gl::Texture mTexCountour;
 	gl::Texture mTexBlob;
 	gl::Texture mTexBlobContour;
+
+	//Mine
+	bool mCamInfo;
 };
 
 #endif
