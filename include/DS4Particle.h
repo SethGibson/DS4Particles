@@ -11,7 +11,7 @@ class DS4Particle
 {
 public:
 	DS4Particle();
-	DS4Particle(Vec3f pPos, Vec3f pVel);
+	DS4Particle(Vec3f pPos, Vec3f pVel, int pAge);
 	~DS4Particle();
 
 	void step();
@@ -31,8 +31,8 @@ public:
 	~DS4ParticleSystem();
 
 	void step();
-	void display(Color pColor);
-	void add(Vec3f pPos, Vec3f pVel);
+	void display();
+	void add(Vec3f pPos, Vec3f pVel, Vec2i pAge);
 	void add(DS4Particle pParticle);
 	inline size_t count() { return mParticles.size(); }
 

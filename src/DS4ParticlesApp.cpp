@@ -3,9 +3,11 @@
 #include "DS4ParticlesApp.h"
 #include "DSAPIUtil.h"
 
+
 static Vec2i S_DEPTH_SIZE(480, 360);
 static Vec2i S_APP_SIZE(1280, 800);
-static size_t S_MAX_PARTICLES = 2500;
+static size_t S_MAX_PARTICLES = 5000;
+
 void DS4ParticlesApp::prepareSettings(Settings *pSettings)
 {
 	pSettings->setWindowSize(S_APP_SIZE.x, S_APP_SIZE.y);
@@ -21,6 +23,7 @@ void DS4ParticlesApp::setup()
 
 	setupScene();
 	setupGUI();
+	setupColors();
 }
 
 void DS4ParticlesApp::update()
@@ -30,18 +33,26 @@ void DS4ParticlesApp::update()
 		if (mDSAPI->grab())
 		{
 			mDepthBuffer = mDSAPI->getZImage();
-			//updateTextures();
-			//updatePointCloud();
 			updateCV();
 		}
 	}
 	mFPS = getAverageFps();
 }
 
+void DS4ParticlesApp::resize()
+{
+	mArcball.setWindowSize(getWindowSize());
+	mArcball.setCenter(Vec2f(getWindowWidth() / 2.0f, getWindowHeight() / 2.0f));
+	mArcball.setRadius(500);
+
+	//
+}
+
 void DS4ParticlesApp::keyDown(KeyEvent pEvent)
 {
 	if (pEvent.getChar() == 'd')
 		mIsDebug = !mIsDebug;
+
 }
 
 void DS4ParticlesApp::mouseDown(MouseEvent pEvent)
@@ -125,9 +136,9 @@ void DS4ParticlesApp::setupScene()
 	mMatCurrent = cv::Mat::zeros(S_DEPTH_SIZE.y, S_DEPTH_SIZE.x, CV_8U(1));
 	mMatPrev = cv::Mat::zeros(S_DEPTH_SIZE.y, S_DEPTH_SIZE.x, CV_8U(1));
 
-	mCamera.setPerspective(45.0f, S_DEPTH_SIZE.x/(float)S_DEPTH_SIZE.y, 100, 4000);
-	mCamera.setEyePoint(Vec3f(0, 700, -700));
-	mCamera.setViewDirection(Vec3f(0, -0.5f, 1.0f));
+	mCamera.setPerspective(32.0f, getWindowAspectRatio(), 100, 4000);
+	mCamera.setEyePoint(Vec3f(0, 975, -590));
+	mCamera.setViewDirection(Vec3f(0, -0.6f, 0.8f));
 	mCamera.setWorldUp(Vec3f(0, 1, 0));
 	mMayaCam.setCurrentCam(mCamera);
 
@@ -135,23 +146,63 @@ void DS4ParticlesApp::setupScene()
 	mArcball.setCenter(Vec2f(getWindowWidth() / 2.0f, getWindowHeight() / 2.0f));
 	mArcball.setRadius(500);
 	mColorShift = 1;
+
+	mBackground = gl::Texture(loadImage(loadAsset("background.png")));
 }
 
 void DS4ParticlesApp::setupGUI()
 {
 	mDepthMin = 0;
 	mDepthMax = 2000;
-	mSizeMin = 250;
 	mThresh = 128;
+	mSizeMin = 250;
 
+
+	mCloudRes = 2; //Cloud Resolution
+	mSpawnRes = 4; //Spawn Resolution
+	mBoltRes = 2;  //Bolt Resolution
+
+	mPointSize = 2.0f;		//Point Size
+	mBoltWidth = 4.0f;		//Bolt Width
+
+	mNumParticles = 5000;
+	mParticleSize = 2.0f;	//Particle Size
+	mAgeMin = 30;			//Min Particle Age
+	mAgeMax = 120;			//Max Particle Age
 	mFramesSpawn = 5;
-	mGUI = params::InterfaceGl::create("Config", Vec2i(200, 200));
+
+	mGUI = params::InterfaceGl::create("Config", Vec2i(250, 400));
+	mGUI->addText("Depth Params");
 	mGUI->addParam("Min Depth", &mDepthMin);
 	mGUI->addParam("Max Depth", &mDepthMax);
 	mGUI->addParam("Threshold", &mThresh);
 	mGUI->addParam("Min Poly Area", &mSizeMin);
-	mGUI->addParam("Spawn Time", &mFramesSpawn);
+	mGUI->addSeparator();
+	mGUI->addText("Point Cloud Params");
+	mGUI->addParam("Cloud Res", &mCloudRes);
+	mGUI->addParam("Bolt Res", &mBoltRes);
+	mGUI->addParam("Spawner Res", &mSpawnRes);
+	mGUI->addParam("Point Size", &mPointSize);
+	mGUI->addParam("Bolt Width", &mBoltWidth);
+	mGUI->addSeparator();
+	mGUI->addText("Particle Params");
+	mGUI->addParam("Particle Count", &mNumParticles);
+	mGUI->addParam("Point Size", &mFramesSpawn);
+	mGUI->addParam("Min Age", &mFramesSpawn);
+	mGUI->addParam("Max Age", &mFramesSpawn);
+	mGUI->addParam("Spawn Rate", &mFramesSpawn);
 	mGUI->addParam("Avg Framerate", &mFPS);
+}
+
+void DS4ParticlesApp::setupColors()
+{
+	IntelBlue = Color::hex(0x0071c5);
+	IntelPaleBlue = Color::hex(0x7ed3f7);
+	IntelLightBlue = Color::hex(0x00aeef);
+	IntelDarkBlue = Color::hex(0x004280);
+	IntelYellow = Color::hex(0xffda00);
+	IntelOrange = Color::hex(0xfdb813);
+	IntelGreen = Color::hex(0xa6ce39);
 }
 #pragma endregion Setup
 
@@ -161,31 +212,38 @@ void DS4ParticlesApp::updateCV()
 {
 	int did = 0;
 	mCloudPoints.clear();
-	for (int dy = 0; dy < S_DEPTH_SIZE.y; ++dy)
+	mBorderPoints.clear();
+	while (did < S_DEPTH_SIZE.x*S_DEPTH_SIZE.y)
 	{
-		for (int dx = 0; dx < S_DEPTH_SIZE.x; ++dx)
-		{
-			float cDepthVal = (float)mDepthBuffer[did];
-			if (cDepthVal > mDepthMin&&cDepthVal < mDepthMax)
-			{
-				mDepthPixels[did] = (uint8_t)(lmap<float>(cDepthVal, mDepthMin, mDepthMax, 255, 0));
-				if (dx % 4 == 0 && dy % 4 == 0)
-				{
-					float cInPoint[] = { static_cast<float>(dx), static_cast<float>(dy), cDepthVal }, cOutPoint[3];
-					DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint, cOutPoint);
-					mCloudPoints.push_back(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]));
-				}
-			}
-			else
-			{
-				mDepthPixels[did] = 0;
-			}
-			did += 1;
-		}
+		float cDepthVal = (float)mDepthBuffer[did];
+		if (cDepthVal > mDepthMin&&cDepthVal < mDepthMax)
+			mDepthPixels[did] = (uint8_t)(lmap<float>(cDepthVal, mDepthMin, mDepthMax, 255, 0));
+
+		else
+			mDepthPixels[did] = 0;
+
+		did += 1;
 	}
 
 	mMatCurrent = cv::Mat(S_DEPTH_SIZE.y, S_DEPTH_SIZE.x, CV_8U(1), mDepthPixels);
 	cv::threshold(mMatCurrent, mMatCurrent, mThresh, 255, CV_THRESH_BINARY);
+
+	for (int dy = 0; dy < S_DEPTH_SIZE.y; dy++)
+	{
+		for (int dx = 0; dx < S_DEPTH_SIZE.x; dx ++)
+		{
+			float cDepthVal = (float)mDepthBuffer[dy*S_DEPTH_SIZE.x + dx];
+			float cInPoint[] = { static_cast<float>(dx), static_cast<float>(dy), cDepthVal }, cOutPoint[3];
+			if ((cDepthVal>mDepthMin&&cDepthVal < mDepthMax) && mMatCurrent.at<uint8_t>(dy, dx)>128)
+			{
+				DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint, cOutPoint);
+				if (dx % 2 == 0&&dy%2==0)
+					mCloudPoints.push_back(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]));
+				else if (dy >= S_DEPTH_SIZE.y - 2 && dx%2==0)
+					mBorderPoints.push_back(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]));
+			}
+		}
+	}
 
 	if (getElapsedFrames() % mFramesSpawn == 0)
 	{
@@ -211,11 +269,8 @@ void DS4ParticlesApp::updateCV()
 						{
 							float cInPoint[] = { static_cast<float>(cPoint.x), static_cast<float>(cPoint.y), cZ }, cOutPoint[3];
 							DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint, cOutPoint);
-							if (mParticleSystem.count() < S_MAX_PARTICLES)
-							{
-								if (cOutPoint[1] < 50)
-									mParticleSystem.add(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]), Vec3f(randFloat(-1, 1), randFloat(-2, -6), randFloat(0, -1)));
-							}
+							if (mParticleSystem.count() < S_MAX_PARTICLES&&cOutPoint[1] < 50)
+								mParticleSystem.add(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]), Vec3f(randFloat(-0.15f, 0.15f), randFloat(-2, -6), randFloat(0, -1)), Vec2f(mAgeMin,mAgeMax));
 						}
 					}
 
@@ -223,7 +278,6 @@ void DS4ParticlesApp::updateCV()
 					if (cZ2>mDepthMin&&cZ2 < mDepthMax)
 					{
 						float cInPoint2[] = { static_cast<float>(cPoint.x), static_cast<float>(cPoint.y), cZ2 }, cOutPoint2[3];
-						
 						DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint2, cOutPoint2);
 						mContourPoints.push_back(Vec3f(cOutPoint2[0], -cOutPoint2[1], cOutPoint2[2]));
 					}
@@ -260,7 +314,7 @@ void DS4ParticlesApp::drawDebug()
 		gl::pushMatrices();
 		gl::translate(Vec2f(S_APP_SIZE.x / 2, S_APP_SIZE.y / 2));
 		gl::scale(Vec2f((S_APP_SIZE.x / (float)S_DEPTH_SIZE.x)*0.5f, (S_APP_SIZE.y / (float)S_DEPTH_SIZE.y)*0.5f));
-		gl::color(Color(0, 1, 0));
+		gl::color(IntelGreen);
 		gl::begin(GL_POINTS);
 		glPointSize(2.0);
 
@@ -280,7 +334,7 @@ void DS4ParticlesApp::drawDebug()
 		gl::pushMatrices();
 		gl::translate(Vec2f(S_APP_SIZE.x / 2, 0));
 		gl::scale(Vec2f((S_APP_SIZE.x / (float)S_DEPTH_SIZE.x)*0.5f, (S_APP_SIZE.y / (float)S_DEPTH_SIZE.y)*0.5f));
-		gl::color(Color(1, 1, 0));
+		gl::color(IntelYellow);
 		
 		for (auto cContour : mContours)
 		{
@@ -299,8 +353,11 @@ void DS4ParticlesApp::drawRunning()
 	mColorShift = math<float>::abs(math<float>::sin(getElapsedFrames()*0.005f));
 
 	gl::clear(Color::black());
-	gl::setMatrices(mMayaCam.getCamera());
+	gl::color(Color::white());
+	gl::setMatricesWindow(getWindowSize());
+	gl::draw(mBackground, Vec2i::zero());
 
+	gl::setMatrices(mMayaCam.getCamera());
 	gl::pushMatrices();
 	gl::rotate(mArcball.getQuat());
 
@@ -308,31 +365,50 @@ void DS4ParticlesApp::drawRunning()
 	gl::enable(GL_POINT_SIZE);
 
 	//Point Cloud
-	glPointSize(0.5f);
+	gl::color(IntelDarkBlue);
+	glPointSize(2.0f);
 	gl::begin(GL_POINTS);
-	gl::color(Color(mColorShift, 1-mColorShift, 1));
 
-
-	for (auto pit = mCloudPoints.begin(); pit != mCloudPoints.end(); ++pit)
+	for (auto pit : mCloudPoints)
 	{
-		gl::vertex(*pit);
+		gl::vertex(pit);
 	}
 	gl::end();
 
 	//Lightning Bolts
-	glPointSize(2.0f);
+	glPointSize(4.0f);
+	gl::color(ColorA(IntelPaleBlue.r, IntelPaleBlue.g, IntelPaleBlue.b, 0.25f));
 	gl::begin(GL_POINTS);
-	gl::color(ColorA(1, 1 - mColorShift, mColorShift, 0.25f));
-	for (auto pit2 = mContourPoints.begin(); pit2 != mContourPoints.end(); ++pit2)
+	for (auto pit2 : mContourPoints)
 	{
-		gl::vertex(*pit2);
+		gl::vertex(pit2);
+	}
+	gl::end();
+
+	glPointSize(3.0f);
+	gl::color(ColorA(IntelPaleBlue.r, IntelPaleBlue.g, IntelPaleBlue.b, 0.75f));
+	gl::begin(GL_POINTS);
+	for (auto bpit : mBorderPoints)
+	{
+		gl::vertex(bpit);
 	}
 	gl::end();
 
 	//Particles
-	glPointSize(1.0f);
-	mParticleSystem.display(Color(1, 1 - mColorShift, mColorShift));
+	glPointSize(2.0f);
+	gl::color(ColorA(IntelPaleBlue.r, IntelPaleBlue.g, IntelPaleBlue.b, 0.75f));
+	mParticleSystem.display();
 	gl::popMatrices();
+
+	gl::setMatricesWindow(S_APP_SIZE.x, S_APP_SIZE.y);
+	Vec3f cEyePoint(mMayaCam.getCamera().getEyePoint());
+	Vec3f cViewDir(mMayaCam.getCamera().getViewDirection());
+
+	//string cEyeStr("Eye Point: " + to_string(cEyePoint.x) + " " + to_string(cEyePoint.y) + " " + to_string(cEyePoint.z));
+	//string cViewStr("Eye Point: " + to_string(cViewDir.x) + " " + to_string(cViewDir.y) + " " + to_string(cViewDir.z));
+
+	//gl::drawString(cEyeStr, Vec2i(20, 20));
+	//gl::drawString(cViewStr, Vec2i(20, 40));
 }
 #pragma endregion Draw
 

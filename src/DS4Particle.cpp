@@ -7,9 +7,9 @@ DS4Particle::DS4Particle()
 
 }
 
-DS4Particle::DS4Particle(Vec3f pPos, Vec3f pVel) : PPosition(pPos), PVelocity(pVel), IsActive(true)
+DS4Particle::DS4Particle(Vec3f pPos, Vec3f pVel, int pAge) : PPosition(pPos), PVelocity(pVel), IsActive(true), mAge(pAge)
 {
-	mAge = randInt(60, 180);
+
 }
 
 DS4Particle::~DS4Particle()
@@ -26,10 +26,10 @@ void DS4Particle::step()
 	if (IsActive)
 	{
 		PPosition += PVelocity;
-		if (PPosition.y <= -280)
-			PVelocity *= Vec3f(0.5f, 0, 0.5f);
-		else
-			PVelocity *= 0.998f;
+		//if (PPosition.y <= -280)
+			//PVelocity *= Vec3f(0.5f, 0, 0.5f);
+		//else
+			PVelocity *= 1.0001f;
 	}
 }
 #pragma endregion DS4Particle
@@ -59,11 +59,9 @@ void DS4ParticleSystem::step()
 	}
 }
 
-void DS4ParticleSystem::display(Color pColor)
+void DS4ParticleSystem::display()
 {
 	gl::begin(GL_POINTS);
-	gl::color(ColorA(pColor.r, pColor.g, pColor.b, 1.0f));
-	glPointSize(2.0f);
 	for (auto p : mParticles)
 	{
 		gl::vertex(p.PPosition);
@@ -71,9 +69,10 @@ void DS4ParticleSystem::display(Color pColor)
 	gl::end();
 }
 
-void DS4ParticleSystem::add(Vec3f pPos, Vec3f pVel)
+void DS4ParticleSystem::add(Vec3f pPos, Vec3f pVel, Vec2i pAge)
 {
-	mParticles.push_back(DS4Particle(pPos, pVel));
+	int cAge = randInt(pAge.x, pAge.y);
+	mParticles.push_back(DS4Particle(pPos, pVel, cAge));
 }
 
 void DS4ParticleSystem::add(DS4Particle pParticle)

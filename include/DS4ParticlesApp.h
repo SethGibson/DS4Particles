@@ -23,13 +23,14 @@ using namespace ci::app;
 using namespace std;
 
 typedef shared_ptr<DSAPI> DSAPIRef;
+
 class DS4ParticlesApp : public AppNative
 {
 public:
-
 	void prepareSettings(Settings *pSettings);
 	void setup();
 	void update();
+	void resize();
 	void mouseDown(MouseEvent pEvent);
 	void mouseDrag(MouseEvent pEvent);
 	void keyDown(KeyEvent pEvent);
@@ -40,11 +41,21 @@ private:
 	void setupGUI();
 	bool setupDSAPI();
 	void setupScene();
+	void setupColors();
 	void updateTextures();
 	void updatePointCloud();
 	void updateCV();
 	void drawDebug();
 	void drawRunning();
+
+	//Colors
+	Color IntelBlue;
+	Color IntelPaleBlue;	
+	Color IntelLightBlue;
+	Color IntelDarkBlue;
+	Color IntelYellow;
+	Color IntelOrange;
+	Color IntelGreen;
 
 	//scene
 	Arcball mArcball;
@@ -55,7 +66,9 @@ private:
 	float mColorShift;
 	vector<Vec3f> mCloudPoints;
 	vector<Vec3f> mContourPoints;
+	vector<Vec3f> mBorderPoints;
 	DS4ParticleSystem mParticleSystem;
+	gl::Texture mBackground;
 
 	//DS
 	DSAPIRef mDSAPI;
@@ -73,9 +86,10 @@ private:
 
 	//Debug
 	params::InterfaceGlRef mGUI;
-	int mDepthMin, mDepthMax, mFramesSpawn;
+	int mDepthMin, mDepthMax, mFramesSpawn, mCloudRes, mSpawnRes, mBoltRes, mAgeMin, mAgeMax;
+	size_t mNumParticles;
 	double mThresh, mSizeMin;
-	float mFPS;
+	float mFPS, mPointSize, mBoltWidth, mParticleSize; 
 	bool mIsDebug;
 	gl::Texture mTexBase;
 	gl::Texture mTexCountour;
