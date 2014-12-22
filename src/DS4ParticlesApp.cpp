@@ -1,3 +1,4 @@
+#include <boost/filesystem.hpp>
 #include <cstring>
 #include <cstdlib>
 #include <fstream>
@@ -5,6 +6,7 @@
 #include "DS4ParticlesApp.h"
 #include "DSAPIUtil.h"
 
+namespace bfs = boost::filesystem;
 
 static Vec2i S_DEPTH_SIZE(480, 360);
 static Vec2i S_APP_SIZE(1280, 800);
@@ -157,26 +159,33 @@ void DS4ParticlesApp::setupScene()
 
 void DS4ParticlesApp::setupGUI()
 {
-	mDepthMin = 0;
-	mDepthMax = 2000;
-	mThresh = 128;
-	mSizeMin = 250;
+	bfs::path cConfigFile = getAssetPath("particle_config.cfg");
+	if (bfs::exists(cConfigFile))
+	{
+		readConfig();
+	}
+	else
+	{
+		mDepthMin = 0;
+		mDepthMax = 2000;
+		mThresh = 128;
+		mSizeMin = 250;
 
-	mCloudRes = 2; //Cloud Resolution
-	mSpawnRes = 4; //Spawn Resolution
-	mBoltRes = 2;  //Bolt Resolution
+		mCloudRes = 2; //Cloud Resolution
+		mSpawnRes = 4; //Spawn Resolution
+		mBoltRes = 2;  //Bolt Resolution
 
-	mPointSize = 2.0f;		//Point Size
-	mBoltWidth = 2.0f;		//Bolt Width
+		mPointSize = 2.0f;		//Point Size
+		mBoltWidth = 2.0f;		//Bolt Width
 
-	mNumParticles = 5000;
-	mParticleSize = 2.0f;	//Particle Size
-	mAgeMin = 30;			//Min Particle Age
-	mAgeMax = 120;			//Max Particle Age
-	mFramesSpawn = 5;
-	mBoltWidthScale = 2.0f;
-	mBoltAlphaScale = 2.0f;
-
+		mNumParticles = 5000;
+		mParticleSize = 2.0f;	//Particle Size
+		mAgeMin = 30;			//Min Particle Age
+		mAgeMax = 120;			//Max Particle Age
+		mFramesSpawn = 5;
+		mBoltWidthScale = 2.0f;
+		mBoltAlphaScale = 2.0f;
+	}
 	mGUI = params::InterfaceGl::create("Config", Vec2i(250, 400));
 	mGUI->addText("Depth Params");
 	mGUI->addParam("Min Depth", &mDepthMin);
@@ -200,7 +209,7 @@ void DS4ParticlesApp::setupGUI()
 	mGUI->addParam("Max Age", &mAgeMax);
 	mGUI->addParam("Spawn Rate", &mFramesSpawn);
 	mGUI->addParam("Avg Framerate", &mFPS);
-
+	mGUI->addButton("Save Settings", std::bind(&DS4ParticlesApp::writeConfig, this));
 	mXDDLogo = gl::Texture(loadImage(loadAsset("xDDBadge.png")));
 	mCinderLogo = gl::Texture(loadImage(loadAsset("cinderBadge.png")));
 }
@@ -208,18 +217,12 @@ void DS4ParticlesApp::setupGUI()
 void DS4ParticlesApp::setupAudio()
 {
 	auto cAudioCtx = audio::Context::master();
-
-	// The InputDeviceNode is platform-specific, so you create it using a special method on the Context:
 	mInputDeviceNode = cAudioCtx->createInputDeviceNode();
 
-	// By providing an FFT size double that of the window size, we 'zero-pad' the analysis data, which gives
-	// an increase in resolution of the resulting spectrum data.
 	auto cMonitorFormat = audio::MonitorSpectralNode::Format().fftSize(2048).windowSize(1024);
 	mMonitorSpectralNode = cAudioCtx->makeNode(new audio::MonitorSpectralNode(cMonitorFormat));
 
 	mInputDeviceNode >> mMonitorSpectralNode;
-
-	// InputDeviceNode (and all InputNode subclasses) need to be enabled()'s to process audio. So does the Context:
 	mInputDeviceNode->enable();
 	cAudioCtx->enable();
 
@@ -227,49 +230,145 @@ void DS4ParticlesApp::setupAudio()
 }
 void DS4ParticlesApp::setupColors()
 {
-	IntelBlue = Color::hex(0x0071c5);
-	IntelPaleBlue = Color::hex(0x7ed3f7);
-	IntelLightBlue = Color::hex(0x00aeef);
-	IntelDarkBlue = Color::hex(0x004280);
-	IntelYellow = Color::hex(0xffda00);
-	IntelOrange = Color::hex(0xfdb813);
-	IntelGreen = Color::hex(0xa6ce39);
-}
-
-void DS4ParticlesApp::setupConfig()
-{
-	/*	mGUI = params::InterfaceGl::create("Config", Vec2i(250, 400));
-	mGUI->addText("Depth Params");
-	mGUI->addParam("Min Depth", &mDepthMin);
-	mGUI->addParam("Max Depth", &mDepthMax);
-	mGUI->addParam("Threshold", &mThresh);
-	mGUI->addParam("Min Poly Area", &mSizeMin);
-	mGUI->addSeparator();
-	mGUI->addText("Point Cloud Params");
-	mGUI->addParam("Cloud Res", &mCloudRes);
-	mGUI->addParam("Bolt Res", &mBoltRes);
-	mGUI->addParam("Spawner Res", &mSpawnRes);
-	mGUI->addParam("Point Size", &mPointSize);
-	mGUI->addParam("Bolt Width", &mBoltWidth);
-	mGUI->addSeparator();
-	mGUI->addText("Particle Params");
-	mGUI->addParam("Particle Count", &mNumParticles);
-	mGUI->addParam("Particle Size", &mParticleSize);
-	mGUI->addParam("Min Age", &mAgeMin);
-	mGUI->addParam("Max Age", &mAgeMax);
-	mGUI->addParam("Spawn Rate", &mFramesSpawn);
-	mGUI->addParam("Avg Framerate", &mFPS);
-*/
+	mIntelBlue = Color::hex(0x0071c5);
+	mIntelPaleBlue = Color::hex(0x7ed3f7);
+	mIntelLightBlue = Color::hex(0x00aeef);
+	mIntelDarkBlue = Color::hex(0x004280);
+	mIntelYellow = Color::hex(0xffda00);
+	mIntelOrange = Color::hex(0xfdb813);
+	mIntelGreen = Color::hex(0xa6ce39);
 }
 
 void DS4ParticlesApp::readConfig()
 {
+	ifstream cConfigFile(getAssetPath("particle_config.cfg").c_str());
+	bpo::options_description cDesc("Configuration");
+	bpo::variables_map cConfigVars = bpo::variables_map();
 
+	cDesc.add_options()
+		("min_depth", bpo::value<int>(), "Min Depth")
+		("max_depth", bpo::value<int>(), "Max Depth")
+		("threshold", bpo::value<double>(), "Threshold")
+		("min_poly_area", bpo::value<double>(), "Min Poly Area")
+		("cloud_res", bpo::value<int>(), "Cloud Res")
+		("bolt_res", bpo::value<int>(), "Bolt Res")
+		("spawner_res", bpo::value<int>(), "Spawner Res")
+		("point_size", bpo::value<float>(), "Point Size")
+		("bolt_width", bpo::value<float>(), "Bolt Width")
+		("bolt_scale", bpo::value<float>(), "Bolt Scale")
+		("bolt_alpha", bpo::value<float>(), "Bolt Brightness")
+		("particle_count", bpo::value<size_t>(), "Particle Count")
+		("particle_size", bpo::value<float>(), "Particle Size")
+		("min_age", bpo::value<int>(), "Min Age")
+		("max_age", bpo::value<int>(), "Max Age")
+		("spawn_rate", bpo::value<int>(), "Spawn Rate")
+	;
+
+	try
+	{
+		bpo::store(bpo::parse_config_file(cConfigFile, cDesc), cConfigVars);
+		bpo::notify(cConfigVars);
+		
+		if (cConfigVars.count("min_depth"))
+			mDepthMin = cConfigVars["min_depth"].as<int>();
+		else
+			mDepthMin = 0;
+		if (cConfigVars.count("max_depth"))
+			mDepthMax = cConfigVars["max_depth"].as<int>();
+		else
+			mDepthMax = 5000;
+		if (cConfigVars.count("threshold"))
+			mThresh = cConfigVars["threshold"].as<double>();
+		else
+			mThresh = 128;
+		if (cConfigVars.count("min_poly_area"))
+			mSizeMin = cConfigVars["min_poly_area"].as<double>();
+		else
+			mSizeMin = 250;
+		if (cConfigVars.count("cloud_res"))
+			mCloudRes = cConfigVars["cloud_res"].as<int>();
+		else
+			mCloudRes = 2;
+		if (cConfigVars.count("bolt_res"))
+			mBoltRes = cConfigVars["bolt_res"].as<int>();
+		else
+			mBoltRes = 2;
+		if (cConfigVars.count("spawner_res"))
+			mSpawnRes = cConfigVars["spawner_res"].as<int>();
+		else
+			mSpawnRes = 4;
+		if (cConfigVars.count("point_size"))
+			mPointSize = cConfigVars["point_size"].as<float>();
+		else
+			mPointSize = 2.0f;
+		if (cConfigVars.count("bolt_width"))
+			mBoltWidth= cConfigVars["bolt_width"].as<float>();
+		else
+			mBoltWidth = 2.0f;
+		if (cConfigVars.count("bolt_scale"))
+			mBoltWidthScale = cConfigVars["bolt_scale"].as<float>();
+		else
+			mBoltWidthScale = 2.0f;
+		if (cConfigVars.count("bolt_alpha"))
+			mBoltAlphaScale = cConfigVars["bolt_alpha"].as<float>();
+		else
+			mBoltAlphaScale = 2.0f;
+		if (cConfigVars.count("particle_count"))
+			mNumParticles = cConfigVars["particle_count"].as<size_t>();
+		else
+			mNumParticles = 5000;
+		if (cConfigVars.count("particle_size"))
+			mParticleSize = cConfigVars["particle_size"].as<float>();
+		else
+			mParticleSize = 2.0f;
+		if (cConfigVars.count("min_age"))
+			mAgeMin = cConfigVars["min_age"].as<int>();
+		else
+			mAgeMin = 30;
+		if (cConfigVars.count("max_age"))
+			mAgeMax = cConfigVars["max_age"].as<int>();
+		else
+			mAgeMax = 120;
+		if (cConfigVars.count("spawn_rate"))
+			mFramesSpawn = cConfigVars["spawn_rate"].as<int>();
+		else
+			mFramesSpawn = 5;
+	}
+	catch (bpo::required_option &e)
+	{
+		console() << "Error parsing config file: " << e.what() << endl;
+		quit();
+	}
+	catch (bpo::error &e)
+	{
+		console() << "Error parsing config file: " << e.what() << endl;
+		quit();
+	}
 }
 
 void DS4ParticlesApp::writeConfig()
 {
+	ofstream cOutFile;
+	cOutFile.open(getAssetPath("particle_config.cfg").c_str());
 
+	cOutFile << "min_depth=" << to_string(mDepthMin) << endl;
+	cOutFile << "max_depth=" << to_string(mDepthMax) << endl;
+	cOutFile << "threshold=" << to_string(mThresh) << endl;
+	cOutFile << "min_poly_area=" << to_string(mSizeMin) << endl;
+	cOutFile << "cloud_res=" << to_string(mCloudRes) << endl;
+	cOutFile << "bolt_res=" << to_string(mBoltRes) << endl;
+	cOutFile << "spawner_res=" << to_string(mSpawnRes) << endl;
+	cOutFile << "point_size=" << to_string(mPointSize) << endl;
+	cOutFile << "bolt_width=" << to_string(mBoltWidth) << endl;
+	cOutFile << "bolt_scale=" << to_string(mBoltWidthScale) << endl;
+	cOutFile << "bolt_alpha=" << to_string(mBoltAlphaScale) << endl;
+	cOutFile << "particle_count=" << to_string(mNumParticles) << endl;
+	cOutFile << "particle_size=" << to_string(mParticleSize) << endl;
+	cOutFile << "min_age=" << to_string(mAgeMin) << endl;
+	cOutFile << "max_age=" << to_string(mAgeMax) << endl;
+	cOutFile << "spawn_rate=" << to_string(mFramesSpawn) << endl;
+
+	cOutFile.close();
 }
 #pragma endregion Setup
 
@@ -296,8 +395,6 @@ void DS4ParticlesApp::updateAudio()
 	cMin = 0;
 	cMax = .00001f;
 	mMagMean = lmap<float>(cSum, cMin, cMax, 0, 1);
-	//mMagMean *= 5;
-	console() << "Mag Mean: " << to_string(mMagMean) << endl;
 }
 
 void DS4ParticlesApp::updateCV()
@@ -412,7 +509,7 @@ void DS4ParticlesApp::drawDebug()
 		gl::pushMatrices();
 		gl::translate(Vec2f(S_APP_SIZE.x / 2, S_APP_SIZE.y / 2));
 		gl::scale(Vec2f((S_APP_SIZE.x / (float)S_DEPTH_SIZE.x)*0.5f, (S_APP_SIZE.y / (float)S_DEPTH_SIZE.y)*0.5f));
-		gl::color(IntelGreen);
+		gl::color(mIntelGreen);
 		gl::begin(GL_POINTS);
 		glPointSize(2.0);
 
@@ -430,7 +527,7 @@ void DS4ParticlesApp::drawDebug()
 		gl::pushMatrices();
 		gl::translate(Vec2f(S_APP_SIZE.x / 2, 0));
 		gl::scale(Vec2f((S_APP_SIZE.x / (float)S_DEPTH_SIZE.x)*0.5f, (S_APP_SIZE.y / (float)S_DEPTH_SIZE.y)*0.5f));
-		gl::color(IntelYellow);
+		gl::color(mIntelYellow);
 		
 		for (auto cContour : mContours)
 		{
@@ -473,7 +570,7 @@ void DS4ParticlesApp::drawRunning()
 	gl::enable(GL_POINT_SIZE);
 
 	//Point Cloud
-	gl::color(IntelDarkBlue);
+	gl::color(mIntelDarkBlue);
 	glPointSize(mPointSize);
 	gl::begin(GL_POINTS);
 
@@ -485,7 +582,7 @@ void DS4ParticlesApp::drawRunning()
 
 	//Lightning Bolts
 	glPointSize(mBoltWidth*mMagMean*mBoltWidthScale);
-	gl::color(ColorA(IntelPaleBlue.r, IntelPaleBlue.g, IntelPaleBlue.b, mMagMean*mBoltAlphaScale));
+	gl::color(ColorA(mIntelPaleBlue.r, mIntelPaleBlue.g, mIntelPaleBlue.b, mMagMean*mBoltAlphaScale));
 	gl::begin(GL_POINTS);
 	for (auto pit2 : mContourPoints)
 	{
@@ -494,7 +591,7 @@ void DS4ParticlesApp::drawRunning()
 	gl::end();
 
 	//glPointSize(mBoltWidth);
-	gl::color(ColorA(IntelPaleBlue.r, IntelPaleBlue.g, IntelPaleBlue.b, 0.75f));
+	gl::color(ColorA(mIntelPaleBlue.r, mIntelPaleBlue.g, mIntelPaleBlue.b, 0.75f));
 	gl::begin(GL_POINTS);
 	for (auto bpit : mBorderPoints)
 	{
@@ -504,7 +601,7 @@ void DS4ParticlesApp::drawRunning()
 
 	//Particles
 	glPointSize(mParticleSize);
-	gl::color(ColorA(IntelBlue.r, IntelBlue.g, IntelBlue.b, 0.75f));
+	gl::color(ColorA(mIntelBlue.r, mIntelBlue.g, mIntelBlue.b, 0.75f));
 	mParticleSystem.display();
 	gl::popMatrices();
 

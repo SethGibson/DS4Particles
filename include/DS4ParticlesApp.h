@@ -7,7 +7,7 @@
 #pragma comment(lib, "DSAPI32.lib")
 #endif
 #include <memory>
-//#include <boost/program_options.hpp>
+#include <boost/program_options.hpp>
 #include "cinder/app/AppNative.h"
 #include "cinder/Arcball.h"
 #include "cinder/audio/Context.h"
@@ -25,7 +25,7 @@
 using namespace ci;
 using namespace ci::app;
 using namespace std;
-//namespace bpo = boost::program_options;
+namespace bpo = boost::program_options;
 
 typedef shared_ptr<DSAPI> DSAPIRef;
 
@@ -48,7 +48,6 @@ private:
 	void setupScene();
 	void setupAudio();
 	void setupColors();
-	void setupConfig();
 
 	void updateCV();
 	void updateAudio();
@@ -67,13 +66,17 @@ private:
 	float mMagMean;
 
 	//Colors
-	Color IntelBlue;
-	Color IntelPaleBlue;	
-	Color IntelLightBlue;
-	Color IntelDarkBlue;
-	Color IntelYellow;
-	Color IntelOrange;
-	Color IntelGreen;
+	Color mIntelBlue;
+	Color mIntelPaleBlue;	
+	Color mIntelLightBlue;
+	Color mIntelDarkBlue;
+	Color mIntelYellow;
+	Color mIntelOrange;
+	Color mIntelGreen;
+
+	Color mCloudColor;
+	Color mParticleColor;
+	Color mBoltColor;
 
 	//scene
 	Arcball mArcball;
