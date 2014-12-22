@@ -1,5 +1,7 @@
 #include <cstring>
 #include <cstdlib>
+#include <fstream>
+#include <numeric>
 #include "DS4ParticlesApp.h"
 #include "DSAPIUtil.h"
 
@@ -8,6 +10,7 @@ static Vec2i S_DEPTH_SIZE(480, 360);
 static Vec2i S_APP_SIZE(1280, 800);
 static size_t S_MAX_PARTICLES = 5000;
 
+#pragma region Cinder Loop
 void DS4ParticlesApp::prepareSettings(Settings *pSettings)
 {
 	pSettings->setWindowSize(S_APP_SIZE.x, S_APP_SIZE.y);
@@ -26,6 +29,7 @@ void DS4ParticlesApp::setup()
 	setupScene();
 	setupGUI();
 	setupColors();
+	setupAudio();
 }
 
 void DS4ParticlesApp::update()
@@ -35,6 +39,7 @@ void DS4ParticlesApp::update()
 		if (mDSAPI->grab())
 		{
 			mDepthBuffer = mDSAPI->getZImage();
+			updateAudio();
 			updateCV();
 		}
 	}
@@ -46,8 +51,6 @@ void DS4ParticlesApp::resize()
 	mArcball.setWindowSize(getWindowSize());
 	mArcball.setCenter(Vec2f(getWindowWidth() / 2.0f, getWindowHeight() / 2.0f));
 	mArcball.setRadius(500);
-
-	//
 }
 
 void DS4ParticlesApp::keyDown(KeyEvent pEvent)
@@ -81,6 +84,7 @@ void DS4ParticlesApp::draw()
 	else
 		drawRunning();
 }
+#pragma endregion Cinder Loop
 
 #pragma region Setup
 bool DS4ParticlesApp::setupDSAPI()
@@ -158,21 +162,83 @@ void DS4ParticlesApp::setupGUI()
 	mThresh = 128;
 	mSizeMin = 250;
 
-
 	mCloudRes = 2; //Cloud Resolution
 	mSpawnRes = 4; //Spawn Resolution
 	mBoltRes = 2;  //Bolt Resolution
 
 	mPointSize = 2.0f;		//Point Size
-	mBoltWidth = 4.0f;		//Bolt Width
+	mBoltWidth = 2.0f;		//Bolt Width
 
 	mNumParticles = 5000;
 	mParticleSize = 2.0f;	//Particle Size
 	mAgeMin = 30;			//Min Particle Age
 	mAgeMax = 120;			//Max Particle Age
 	mFramesSpawn = 5;
+	mBoltWidthScale = 2.0f;
+	mBoltAlphaScale = 2.0f;
 
 	mGUI = params::InterfaceGl::create("Config", Vec2i(250, 400));
+	mGUI->addText("Depth Params");
+	mGUI->addParam("Min Depth", &mDepthMin);
+	mGUI->addParam("Max Depth", &mDepthMax);
+	mGUI->addParam("Threshold", &mThresh);
+	mGUI->addParam("Min Poly Area", &mSizeMin);
+	mGUI->addSeparator();
+	mGUI->addText("Point Cloud Params");
+	mGUI->addParam("Cloud Res", &mCloudRes);
+	mGUI->addParam("Bolt Res", &mBoltRes);
+	mGUI->addParam("Spawner Res", &mSpawnRes);
+	mGUI->addParam("Point Size", &mPointSize);
+	mGUI->addParam("Bolt Width", &mBoltWidth);
+	mGUI->addParam("Bolt Scale", &mBoltWidthScale);
+	mGUI->addParam("Bolt Brightness", &mBoltAlphaScale);
+	mGUI->addSeparator();
+	mGUI->addText("Particle Params");
+	mGUI->addParam("Particle Count", &mNumParticles);
+	mGUI->addParam("Particle Size", &mParticleSize);
+	mGUI->addParam("Min Age", &mAgeMin);
+	mGUI->addParam("Max Age", &mAgeMax);
+	mGUI->addParam("Spawn Rate", &mFramesSpawn);
+	mGUI->addParam("Avg Framerate", &mFPS);
+
+	mXDDLogo = gl::Texture(loadImage(loadAsset("xDDBadge.png")));
+	mCinderLogo = gl::Texture(loadImage(loadAsset("cinderBadge.png")));
+}
+
+void DS4ParticlesApp::setupAudio()
+{
+	auto cAudioCtx = audio::Context::master();
+
+	// The InputDeviceNode is platform-specific, so you create it using a special method on the Context:
+	mInputDeviceNode = cAudioCtx->createInputDeviceNode();
+
+	// By providing an FFT size double that of the window size, we 'zero-pad' the analysis data, which gives
+	// an increase in resolution of the resulting spectrum data.
+	auto cMonitorFormat = audio::MonitorSpectralNode::Format().fftSize(2048).windowSize(1024);
+	mMonitorSpectralNode = cAudioCtx->makeNode(new audio::MonitorSpectralNode(cMonitorFormat));
+
+	mInputDeviceNode >> mMonitorSpectralNode;
+
+	// InputDeviceNode (and all InputNode subclasses) need to be enabled()'s to process audio. So does the Context:
+	mInputDeviceNode->enable();
+	cAudioCtx->enable();
+
+	mMagMean = 0;
+}
+void DS4ParticlesApp::setupColors()
+{
+	IntelBlue = Color::hex(0x0071c5);
+	IntelPaleBlue = Color::hex(0x7ed3f7);
+	IntelLightBlue = Color::hex(0x00aeef);
+	IntelDarkBlue = Color::hex(0x004280);
+	IntelYellow = Color::hex(0xffda00);
+	IntelOrange = Color::hex(0xfdb813);
+	IntelGreen = Color::hex(0xa6ce39);
+}
+
+void DS4ParticlesApp::setupConfig()
+{
+	/*	mGUI = params::InterfaceGl::create("Config", Vec2i(250, 400));
 	mGUI->addText("Depth Params");
 	mGUI->addParam("Min Depth", &mDepthMin);
 	mGUI->addParam("Max Depth", &mDepthMax);
@@ -193,24 +259,46 @@ void DS4ParticlesApp::setupGUI()
 	mGUI->addParam("Max Age", &mAgeMax);
 	mGUI->addParam("Spawn Rate", &mFramesSpawn);
 	mGUI->addParam("Avg Framerate", &mFPS);
-
-	mXDDLogo = gl::Texture(loadImage(loadAsset("xDDBadge.png")));
-	mCinderLogo = gl::Texture(loadImage(loadAsset("cinderBadge.png")));
+*/
 }
 
-void DS4ParticlesApp::setupColors()
+void DS4ParticlesApp::readConfig()
 {
-	IntelBlue = Color::hex(0x0071c5);
-	IntelPaleBlue = Color::hex(0x7ed3f7);
-	IntelLightBlue = Color::hex(0x00aeef);
-	IntelDarkBlue = Color::hex(0x004280);
-	IntelYellow = Color::hex(0xffda00);
-	IntelOrange = Color::hex(0xfdb813);
-	IntelGreen = Color::hex(0xa6ce39);
+
+}
+
+void DS4ParticlesApp::writeConfig()
+{
+
 }
 #pragma endregion Setup
 
 #pragma region Update
+
+void DS4ParticlesApp::updateAudio()
+{
+	mMagSpectrum = mMonitorSpectralNode->getMagSpectrum();
+	auto cFFTBounds = std::minmax(mMagSpectrum.begin(), mMagSpectrum.end());
+
+	float cSum = 0.0f;
+	float cMax = -1.0f;
+	float cMin = 10000.0f;
+	for (auto cV : mMagSpectrum)
+	{
+		if (cV > cMax)
+			cMax = cV;
+		else if (cV < cMin)
+			cMin = cV;
+		cSum += cV;
+	}
+
+	cSum /= (float)mMagSpectrum.size();
+	cMin = 0;
+	cMax = .00001f;
+	mMagMean = lmap<float>(cSum, cMin, cMax, 0, 1);
+	//mMagMean *= 5;
+	console() << "Mag Mean: " << to_string(mMagMean) << endl;
+}
 
 void DS4ParticlesApp::updateCV()
 {
@@ -396,8 +484,8 @@ void DS4ParticlesApp::drawRunning()
 	gl::end();
 
 	//Lightning Bolts
-	glPointSize(mBoltWidth);
-	gl::color(ColorA(IntelPaleBlue.r, IntelPaleBlue.g, IntelPaleBlue.b, 0.25f));
+	glPointSize(mBoltWidth*mMagMean*mBoltWidthScale);
+	gl::color(ColorA(IntelPaleBlue.r, IntelPaleBlue.g, IntelPaleBlue.b, mMagMean*mBoltAlphaScale));
 	gl::begin(GL_POINTS);
 	for (auto pit2 : mContourPoints)
 	{
@@ -416,7 +504,7 @@ void DS4ParticlesApp::drawRunning()
 
 	//Particles
 	glPointSize(mParticleSize);
-	gl::color(ColorA(IntelPaleBlue.r, IntelPaleBlue.g, IntelPaleBlue.b, 0.75f));
+	gl::color(ColorA(IntelBlue.r, IntelBlue.g, IntelBlue.b, 0.75f));
 	mParticleSystem.display();
 	gl::popMatrices();
 

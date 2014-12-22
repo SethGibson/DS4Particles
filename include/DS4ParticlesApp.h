@@ -7,8 +7,12 @@
 #pragma comment(lib, "DSAPI32.lib")
 #endif
 #include <memory>
+//#include <boost/program_options.hpp>
 #include "cinder/app/AppNative.h"
 #include "cinder/Arcball.h"
+#include "cinder/audio/Context.h"
+#include "cinder/audio/MonitorNode.h"
+#include "cinder/audio/Utilities.h"
 #include "cinder/Camera.h"
 #include "cinder/gl/gl.h"
 #include "cinder/gl/Texture.h"
@@ -21,6 +25,7 @@
 using namespace ci;
 using namespace ci::app;
 using namespace std;
+//namespace bpo = boost::program_options;
 
 typedef shared_ptr<DSAPI> DSAPIRef;
 
@@ -41,13 +46,25 @@ private:
 	void setupGUI();
 	bool setupDSAPI();
 	void setupScene();
+	void setupAudio();
 	void setupColors();
-	void updateTextures();
-	void updatePointCloud();
+	void setupConfig();
+
 	void updateCV();
+	void updateAudio();
+
 	void drawDebug();
 	void drawRunning();
 	void drawCamInfo();
+
+	void readConfig();
+	void writeConfig();
+
+	//Audio stuff
+	audio::InputDeviceNodeRef mInputDeviceNode;
+	audio::MonitorSpectralNodeRef mMonitorSpectralNode;
+	vector<float> mMagSpectrum;
+	float mMagMean;
 
 	//Colors
 	Color IntelBlue;
@@ -89,7 +106,7 @@ private:
 	int mDepthMin, mDepthMax, mFramesSpawn, mCloudRes, mSpawnRes, mBoltRes, mAgeMin, mAgeMax;
 	size_t mNumParticles;
 	double mThresh, mSizeMin;
-	float mFPS, mPointSize, mBoltWidth, mParticleSize; 
+	float mFPS, mPointSize, mBoltWidth, mBoltWidthScale, mBoltAlphaScale, mParticleSize; 
 	bool mIsDebug;
 	gl::Texture mTexBase;
 	gl::Texture mTexCountour;
