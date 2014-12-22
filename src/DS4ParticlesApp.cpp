@@ -11,6 +11,7 @@ static size_t S_MAX_PARTICLES = 5000;
 void DS4ParticlesApp::prepareSettings(Settings *pSettings)
 {
 	pSettings->setWindowSize(S_APP_SIZE.x, S_APP_SIZE.y);
+	pSettings->setWindowPos(20, 40);
 	pSettings->setFrameRate(60);
 	//pSettings->setFullScreen(true);
 }
@@ -146,7 +147,6 @@ void DS4ParticlesApp::setupScene()
 	mArcball.setWindowSize(getWindowSize());
 	mArcball.setCenter(Vec2f(getWindowWidth() / 2.0f, getWindowHeight() / 2.0f));
 	mArcball.setRadius(500);
-	mColorShift = 1;
 
 	mBackground = gl::Texture(loadImage(loadAsset("background.png")));
 }
@@ -297,7 +297,6 @@ void DS4ParticlesApp::updateCV()
 		memcpy(mPrevDepthBuffer, mDepthBuffer, (size_t)(S_DEPTH_SIZE.x*S_DEPTH_SIZE.y*sizeof(uint16_t)));
 		if (mIsDebug)
 			mTexBlob = gl::Texture(fromOcv(mMatDiff));
-
 	}
 
 	if (mIsDebug)
@@ -358,7 +357,6 @@ void DS4ParticlesApp::drawDebug()
 		gl::popMatrices();
 	}
 
-
 	gl::enableAlphaBlending();
 	gl::color(ColorA::white());
 	float cXDDY = getWindowHeight() - 10 - mXDDLogo.getHeight();
@@ -374,8 +372,6 @@ void DS4ParticlesApp::drawDebug()
 
 void DS4ParticlesApp::drawRunning()
 {
-	mColorShift = math<float>::abs(math<float>::sin(getElapsedFrames()*0.005f));
-
 	gl::clear(Color::black());
 	gl::color(Color::white());
 	gl::setMatricesWindow(getWindowSize());

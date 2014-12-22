@@ -48,6 +48,7 @@ private:
 	void drawDebug();
 	void drawRunning();
 	void drawCamInfo();
+
 	//Colors
 	Color IntelBlue;
 	Color IntelPaleBlue;	
@@ -63,7 +64,6 @@ private:
 	CameraPersp mCamera;
 
 	//Point cloud
-	float mColorShift;
 	vector<Vec3f> mCloudPoints;
 	vector<Vec3f> mContourPoints;
 	vector<Vec3f> mBorderPoints;
