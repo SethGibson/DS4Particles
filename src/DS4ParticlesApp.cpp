@@ -193,6 +193,9 @@ void DS4ParticlesApp::setupGUI()
 	mGUI->addParam("Max Age", &mAgeMax);
 	mGUI->addParam("Spawn Rate", &mFramesSpawn);
 	mGUI->addParam("Avg Framerate", &mFPS);
+
+	mXDDLogo = gl::Texture(loadImage(loadAsset("xDDBadge.png")));
+	mCinderLogo = gl::Texture(loadImage(loadAsset("cinderBadge.png")));
 }
 
 void DS4ParticlesApp::setupColors()
@@ -229,19 +232,22 @@ void DS4ParticlesApp::updateCV()
 	mMatCurrent = cv::Mat(S_DEPTH_SIZE.y, S_DEPTH_SIZE.x, CV_8U(1), mDepthPixels);
 	cv::threshold(mMatCurrent, mMatCurrent, mThresh, 255, CV_THRESH_BINARY);
 
-	for (int dy = 0; dy < S_DEPTH_SIZE.y; dy++)
+	if (!mIsDebug)
 	{
-		for (int dx = 0; dx < S_DEPTH_SIZE.x; dx ++)
+		for (int dy = 0; dy < S_DEPTH_SIZE.y; dy++)
 		{
-			float cDepthVal = (float)mDepthBuffer[dy*S_DEPTH_SIZE.x + dx];
-			float cInPoint[] = { static_cast<float>(dx), static_cast<float>(dy), cDepthVal }, cOutPoint[3];
-			if ((cDepthVal>mDepthMin&&cDepthVal < mDepthMax) && mMatCurrent.at<uint8_t>(dy, dx)>128)
+			for (int dx = 0; dx < S_DEPTH_SIZE.x; dx++)
 			{
-				DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint, cOutPoint);
-				if (dx % mCloudRes == 0&&dy%mCloudRes==0)
-					mCloudPoints.push_back(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]));
-				else if (dy >= S_DEPTH_SIZE.y - 2 && dx%mCloudRes==0)
-					mBorderPoints.push_back(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]));
+				float cDepthVal = (float)mDepthBuffer[dy*S_DEPTH_SIZE.x + dx];
+				float cInPoint[] = { static_cast<float>(dx), static_cast<float>(dy), cDepthVal }, cOutPoint[3];
+				if ((cDepthVal>mDepthMin&&cDepthVal < mDepthMax) && mMatCurrent.at<uint8_t>(dy, dx)>128)
+				{
+					DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint, cOutPoint);
+					if (dx % mCloudRes == 0 && dy%mCloudRes == 0)
+						mCloudPoints.push_back(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]));
+					else if (dy >= S_DEPTH_SIZE.y - 2 && dx%mCloudRes == 0)
+						mBorderPoints.push_back(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]));
+				}
 			}
 		}
 	}
@@ -261,15 +267,18 @@ void DS4ParticlesApp::updateCV()
 				for (int vi = 0; vi < cContour.size(); vi++)
 				{
 					cv::Point cPoint = cContour[vi];
-					if (vi % mSpawnRes == 0)
+					if (!mIsDebug)
 					{
-						uint16_t cZ = mPrevDepthBuffer[cPoint.y*S_DEPTH_SIZE.x + cPoint.x];
-						if (cZ>mDepthMin&&cZ < mDepthMax)
+						if (vi % mSpawnRes == 0)
 						{
-							float cInPoint[] = { static_cast<float>(cPoint.x), static_cast<float>(cPoint.y), cZ }, cOutPoint[3];
-							DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint, cOutPoint);
-							if (mParticleSystem.count() < mNumParticles&&cOutPoint[1] < 50)
-								mParticleSystem.add(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]), Vec3f(randFloat(-0.15f, 0.15f), randFloat(-2, -6), randFloat(0, -1)), Vec2f(mAgeMin,mAgeMax));
+							uint16_t cZ = mPrevDepthBuffer[cPoint.y*S_DEPTH_SIZE.x + cPoint.x];
+							if (cZ>mDepthMin&&cZ < mDepthMax)
+							{
+								float cInPoint[] = { static_cast<float>(cPoint.x), static_cast<float>(cPoint.y), cZ }, cOutPoint[3];
+								DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint, cOutPoint);
+								if (mParticleSystem.count() < mNumParticles&&cOutPoint[1] < 50)
+									mParticleSystem.add(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]), Vec3f(randFloat(-0.15f, 0.15f), randFloat(-2, -6), randFloat(0, -1)), Vec2f(mAgeMin, mAgeMax));
+							}
 						}
 					}
 
@@ -348,7 +357,19 @@ void DS4ParticlesApp::drawDebug()
 		}
 		gl::popMatrices();
 	}
+
+
+	gl::enableAlphaBlending();
+	gl::color(ColorA::white());
+	float cXDDY = getWindowHeight() - 10 - mXDDLogo.getHeight();
+	gl::draw(mXDDLogo, Vec2i(0, cXDDY));
+
+	float cCiX = getWindowWidth() - mCinderLogo.getWidth();
+	float cCiY = getWindowHeight() - 5 - mCinderLogo.getHeight();
+	gl::draw(mCinderLogo, Vec2i(cCiX, cCiY));
+
 	mGUI->draw();
+	gl::disableAlphaBlending();
 }
 
 void DS4ParticlesApp::drawRunning()
@@ -405,6 +426,9 @@ void DS4ParticlesApp::drawRunning()
 
 	if (mCamInfo)
 		drawCamInfo();
+
+	gl::disableAlphaBlending();
+	gl::disable(GL_POINT_SIZE);
 }
 
 void DS4ParticlesApp::drawCamInfo()

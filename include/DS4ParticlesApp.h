@@ -95,6 +95,8 @@ private:
 	gl::Texture mTexCountour;
 	gl::Texture mTexBlob;
 	gl::Texture mTexBlobContour;
+	gl::Texture mXDDLogo;
+	gl::Texture mCinderLogo;
 
 	//Mine
 	bool mCamInfo;
