@@ -21,6 +21,7 @@ void DS4ParticlesApp::setup()
 
 	setupScene();
 	setupGUI();
+	setupColors();
 }
 
 void DS4ParticlesApp::update()
@@ -134,24 +135,65 @@ void DS4ParticlesApp::setupScene()
 	mArcball.setCenter(Vec2f(getWindowWidth() / 2.0f, getWindowHeight() / 2.0f));
 	mArcball.setRadius(500);
 	mColorShift = 1;
+
+	mBackground = gl::Texture(loadImage(loadAsset("background.png")));
 }
 
 void DS4ParticlesApp::setupGUI()
 {
 	mDepthMin = 0;
 	mDepthMax = 2000;
-	mSizeMin = 250;
 	mThresh = 128;
+	mSizeMin = 250;
 
+
+	mCloudRes = 2; //Cloud Resolution
+	mSpawnRes = 4; //Spawn Resolution
+	mBoltRes = 2;  //Bolt Resolution
+
+	mPointSize = 2.0f;		//Point Size
+	mBoltWidth = 4.0f;		//Bolt Width
+
+	mNumParticles = 5000;
+	mParticleSize = 2.0f;	//Particle Size
+	mAgeMin = 30;			//Min Particle Age
+	mAgeMax = 120;			//Max Particle Age
 	mFramesSpawn = 5;
-	mGUI = params::InterfaceGl::create("Config", Vec2i(200, 200));
+
+	mGUI = params::InterfaceGl::create("Config", Vec2i(250, 400));
+	mGUI->addText("Depth Params");
 	mGUI->addParam("Min Depth", &mDepthMin);
 	mGUI->addParam("Max Depth", &mDepthMax);
 	mGUI->addParam("Threshold", &mThresh);
 	mGUI->addParam("Min Poly Area", &mSizeMin);
-	mGUI->addParam("Spawn Time", &mFramesSpawn);
+	mGUI->addSeparator();
+	mGUI->addText("Point Cloud Params");
+	mGUI->addParam("Cloud Res", &mCloudRes);
+	mGUI->addParam("Bolt Res", &mBoltRes);
+	mGUI->addParam("Spawner Res", &mSpawnRes);
+	mGUI->addParam("Point Size", &mPointSize);
+	mGUI->addParam("Bolt Width", &mBoltWidth);
+	mGUI->addSeparator();
+	mGUI->addText("Particle Params");
+	mGUI->addParam("Particle Count", &mNumParticles);
+	mGUI->addParam("Particle Size", &mParticleSize);
+	mGUI->addParam("Min Age", &mAgeMin);
+	mGUI->addParam("Max Age", &mAgeMax);
+	mGUI->addParam("Spawn Rate", &mFramesSpawn);
 	mGUI->addParam("Avg Framerate", &mFPS);
 }
+
+void DS4ParticlesApp::setupColors()
+{
+	IntelBlue = Color::hex(0x0071c5);
+	IntelPaleBlue = Color::hex(0x7ed3f7);
+	IntelLightBlue = Color::hex(0x00aeef);
+	IntelDarkBlue = Color::hex(0x004280);
+	IntelYellow = Color::hex(0xffda00);
+	IntelOrange = Color::hex(0xfdb813);
+	IntelGreen = Color::hex(0xa6ce39);
+}
+
 #pragma endregion Setup
 
 #pragma region Update
@@ -200,7 +242,7 @@ void DS4ParticlesApp::updateTextures()
 
 		for (auto cKeep : mContoursKeep)
 		{
-			for (int vi = 0; vi < cKeep.size();vi+=4)
+			for (int vi = 0; vi < cKeep.size();vi+=mSpawnRes)
 			{
 				cv::Point cPoint = cKeep[vi];
 				uint16_t cZ = mPrevDepthBuffer[cPoint.y*S_DEPTH_SIZE.x + cPoint.x];
@@ -208,7 +250,7 @@ void DS4ParticlesApp::updateTextures()
 				{
 					float cInPoint[] = { static_cast<float>(cPoint.x), static_cast<float>(cPoint.y), cZ }, cOutPoint[3];
 					DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint, cOutPoint);
-					if (mParticleSystem.count() < S_MAX_PARTICLES)
+					if (mParticleSystem.count() < mNumParticles)
 					{
 						if (cOutPoint[1]<50)
 							mParticleSystem.add(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]),Vec3f(randFloat(-1, 1), randFloat(-2, -6), randFloat(0, -1)));
@@ -252,9 +294,9 @@ void DS4ParticlesApp::updatePointCloud()
 
 	//PointCloud
 	mCloudPoints.clear();
-	for (int dY = 0; dY < S_DEPTH_SIZE.y; dY+=4)
+	for (int dY = 0; dY < S_DEPTH_SIZE.y; dY+=mCloudRes)
 	{
-		for (int dX = 0; dX < S_DEPTH_SIZE.x; dX+=4)
+		for (int dX = 0; dX < S_DEPTH_SIZE.x; dX+=mCloudRes)
 		{
 			if (mMatCurrent.at<uint8_t>(dY, dX) > 0)
 			{
@@ -336,18 +378,24 @@ void DS4ParticlesApp::drawDebug()
 void DS4ParticlesApp::drawRunning()
 {
 	gl::clear(Color::black());
+	gl::pushMatrices();
+	gl::color(Color::white());
+	gl::setMatricesWindow(getWindowSize());
+	gl::draw(mBackground, Vec2i::zero());
+	gl::popMatrices();
+
 	gl::setMatrices(mMayaCam.getCamera());
 
 	gl::pushMatrices();
 	gl::rotate(mArcball.getQuat());
-
+	gl::scale(-1, 1, 1);
 	gl::enableAdditiveBlending();
 	gl::enable(GL_POINT_SIZE);
 
 	//Point Cloud
-	glPointSize(2.0f);
+	glPointSize(mPointSize);
 	gl::begin(GL_POINTS);
-	gl::color(Color(mColorShift, 1-mColorShift, 1));
+	gl::color(IntelDarkBlue);
 
 
 	for (auto pit = mCloudPoints.begin(); pit != mCloudPoints.end(); ++pit)
@@ -357,9 +405,9 @@ void DS4ParticlesApp::drawRunning()
 	gl::end();
 
 	//Lightning Bolts
-	glPointSize(4.0f);
+	glPointSize(mBoltWidth);
 	gl::begin(GL_POINTS);
-	gl::color(ColorA(1, 1 - mColorShift, mColorShift, 0.25f));
+	gl::color(ColorA(IntelPaleBlue.r, IntelPaleBlue.b, IntelPaleBlue.b, 0.25f));
 	for (auto pit2 = mContourPoints.begin(); pit2 != mContourPoints.end(); ++pit2)
 	{
 		gl::vertex(*pit2);
@@ -367,8 +415,8 @@ void DS4ParticlesApp::drawRunning()
 	gl::end();
 
 	//Particles
-	glPointSize(1.0f);
-	mParticleSystem.display(Color(1, 1 - mColorShift, mColorShift));
+	glPointSize(mParticleSize);
+	mParticleSystem.display(IntelPaleBlue);
 	gl::popMatrices();
 }
 #pragma endregion Draw
