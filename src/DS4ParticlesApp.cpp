@@ -57,9 +57,18 @@ void DS4ParticlesApp::resize()
 
 void DS4ParticlesApp::keyDown(KeyEvent pEvent)
 {
-	if (pEvent.getChar() == 'd')
+	switch (pEvent.getChar())
+	{
+	case 'd':
 		mIsDebug = !mIsDebug;
-
+		break;
+	case 'b':
+		mDrawBackground = !mDrawBackground;
+		break;
+	case 'l':
+		mDrawLogo = !mDrawLogo;
+		break;
+	}
 }
 
 void DS4ParticlesApp::mouseDown(MouseEvent pEvent)
@@ -154,7 +163,10 @@ void DS4ParticlesApp::setupScene()
 	mArcball.setCenter(Vec2f(getWindowWidth() / 2.0f, getWindowHeight() / 2.0f));
 	mArcball.setRadius(500);
 
-	mBackground = gl::Texture(loadImage(loadAsset("background.png")));
+	//mBackground = gl::Texture(loadImage(loadAsset("background.png")));
+	mBackground = gl::Texture(loadImage(loadAsset("TEST_bg.jpg")));
+	mDrawBackground = false;
+	mDrawLogo = false;
 }
 
 void DS4ParticlesApp::setupGUI()
@@ -237,6 +249,8 @@ void DS4ParticlesApp::setupColors()
 	mIntelYellow = Color::hex(0xffda00);
 	mIntelOrange = Color::hex(0xfdb813);
 	mIntelGreen = Color::hex(0xa6ce39);
+
+	mColorMode = COLOR_MODE_BLUE;
 }
 
 void DS4ParticlesApp::readConfig()
@@ -438,9 +452,6 @@ void DS4ParticlesApp::updateCV()
 		}
 	}
 
-	
-	//if (getElapsedFrames() % mFramesSpawn == 0)
-	//{
 	mContours.clear();
 	mContourPoints.clear();
 
@@ -557,8 +568,12 @@ void DS4ParticlesApp::drawRunning()
 {
 	gl::clear(Color::black());
 	gl::color(Color::white());
-	//gl::setMatricesWindow(getWindowSize());
-	//gl::draw(mBackground, Vec2i::zero());
+	if (mDrawBackground)
+	{
+		gl::setMatricesWindow(getWindowSize());
+		//gl::draw(mBackground, Vec2i::zero());
+		gl::draw(mBackground, Rectf(0,0,S_APP_SIZE.x, S_APP_SIZE.y));
+	}
 
 	gl::setMatrices(mMayaCam.getCamera());
 	gl::pushMatrices();
@@ -568,7 +583,8 @@ void DS4ParticlesApp::drawRunning()
 	gl::enable(GL_POINT_SIZE);
 
 	//Point Cloud
-	gl::color(mIntelDarkBlue);
+	if (mColorMode==COLOR_MODE_BLUE)
+		gl::color(mIntelDarkBlue);
 	glPointSize(mPointSize);
 	gl::begin(GL_POINTS);
 
@@ -580,7 +596,8 @@ void DS4ParticlesApp::drawRunning()
 
 	//Lightning Bolts
 	glPointSize(mBoltWidth*mMagMean*mBoltWidthScale);
-	gl::color(ColorA(mIntelPaleBlue.r, mIntelPaleBlue.g, mIntelPaleBlue.b, mMagMean*mBoltAlphaScale));
+	if (mColorMode == COLOR_MODE_BLUE)
+		gl::color(ColorA(mIntelPaleBlue.r, mIntelPaleBlue.g, mIntelPaleBlue.b, mMagMean*mBoltAlphaScale));
 	gl::begin(GL_POINTS);
 	for (auto pit2 : mContourPoints)
 	{
@@ -589,6 +606,8 @@ void DS4ParticlesApp::drawRunning()
 	gl::end();
 
 	//glPointSize(mBoltWidth);
+	if (mColorMode == COLOR_MODE_BLUE)
+		gl::color(mIntelDarkBlue);
 	gl::color(ColorA(mIntelPaleBlue.r, mIntelPaleBlue.g, mIntelPaleBlue.b, 0.75f));
 	gl::begin(GL_POINTS);
 	for (auto bpit : mBorderPoints)
@@ -599,7 +618,8 @@ void DS4ParticlesApp::drawRunning()
 
 	//Particles
 	glPointSize(mParticleSize);
-	gl::color(ColorA(mIntelBlue.r, mIntelBlue.g, mIntelBlue.b, 0.75f));
+	if (mColorMode == COLOR_MODE_BLUE)
+		gl::color(ColorA(mIntelBlue.r, mIntelBlue.g, mIntelBlue.b, 0.75f));
 	mParticleSystem.display();
 	gl::popMatrices();
 

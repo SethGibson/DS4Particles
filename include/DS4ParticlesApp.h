@@ -42,6 +42,12 @@ public:
 	void draw();
 	void shutdown();
 
+	enum DS4PColorMode
+	{
+		COLOR_MODE_BLUE,
+		COLOR_MODE_GOLD
+	};
+
 private:
 	void setupGUI();
 	bool setupDSAPI();
@@ -77,18 +83,21 @@ private:
 	Color mCloudColor;
 	Color mParticleColor;
 	Color mBoltColor;
+	DS4PColorMode mColorMode;
 
 	//scene
+	bool mDrawBackground, mDrawLogo;
 	Arcball mArcball;
 	MayaCamUI mMayaCam;
 	CameraPersp mCamera;
+	gl::Texture mBackground;
+	gl::Texture mLogo;
 
 	//Point cloud
 	vector<Vec3f> mCloudPoints;
 	vector<Vec3f> mContourPoints;
 	vector<Vec3f> mBorderPoints;
 	DS4ParticleSystem mParticleSystem;
-	gl::Texture mBackground;
 
 	//DS
 	DSAPIRef mDSAPI;
