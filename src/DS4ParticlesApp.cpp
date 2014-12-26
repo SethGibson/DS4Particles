@@ -171,11 +171,8 @@ void DS4ParticlesApp::setupScene()
 	mArcball.setCenter(Vec2f(getWindowWidth() / 2.0f, getWindowHeight() / 2.0f));
 	mArcball.setRadius(500);
 
-	//mBackground = gl::Texture(loadImage(loadAsset("background.png")));
-	mBackground = gl::Texture(loadImage(loadAsset("TEST_bg.jpg")));
+	mBackground = gl::Texture(loadImage(loadAsset("bg_gradient.png")));
 	mLogo = gl::Texture(loadImage(loadAsset("rs_badge.png")));
-	mDrawBackground = false;
-	mDrawLogo = false;
 }
 
 void DS4ParticlesApp::setupGUI()
@@ -206,6 +203,9 @@ void DS4ParticlesApp::setupGUI()
 		mFramesSpawn = 5;
 		mBoltWidthScale = 2.0f;
 		mBoltAlphaScale = 2.0f;
+		mDrawBackground = false;
+		mDrawLogo = false;
+		mColorMode = COLOR_MODE_BLUE;
 	}
 	mGUI = params::InterfaceGl::create("Config", Vec2i(250, 400));
 	mGUI->addText("Depth Params");
@@ -258,8 +258,6 @@ void DS4ParticlesApp::setupColors()
 	mIntelYellow = Color::hex(0xffda00);
 	mIntelOrange = Color::hex(0xfdb813);
 	mIntelGreen = Color::hex(0xa6ce39);
-
-	mColorMode = COLOR_MODE_BLUE;
 }
 
 void DS4ParticlesApp::readConfig()
@@ -285,6 +283,10 @@ void DS4ParticlesApp::readConfig()
 		("min_age", bpo::value<int>(), "Min Age")
 		("max_age", bpo::value<int>(), "Max Age")
 		("spawn_rate", bpo::value<int>(), "Spawn Rate")
+		("draw_logo", bpo::value<bool>(), "Draw Logo")
+		("draw_bg", bpo::value<bool>(), "Draw Background")
+		("color_mode", bpo::value<int>(), "Color Mode")
+
 	;
 
 	try
@@ -357,6 +359,21 @@ void DS4ParticlesApp::readConfig()
 			mFramesSpawn = cConfigVars["spawn_rate"].as<int>();
 		else
 			mFramesSpawn = 5;
+		if (cConfigVars.count("draw_logo"))
+			mDrawLogo = cConfigVars["draw_logo"].as<bool>();
+		else
+			mFramesSpawn = false;
+		if (cConfigVars.count("draw_bg"))
+			mDrawBackground = cConfigVars["draw_bg"].as<bool>();
+		else
+			mDrawBackground = false;
+		if (cConfigVars.count("color_mode"))
+		{
+			int cColorMode = cConfigVars["color_mode"].as<int>();
+			mColorMode = static_cast<DS4PColorMode>(cColorMode);
+		}
+		else
+			mColorMode = COLOR_MODE_BLUE;
 	}
 	catch (bpo::required_option &e)
 	{
@@ -391,7 +408,9 @@ void DS4ParticlesApp::writeConfig()
 	cOutFile << "min_age=" << to_string(mAgeMin) << endl;
 	cOutFile << "max_age=" << to_string(mAgeMax) << endl;
 	cOutFile << "spawn_rate=" << to_string(mFramesSpawn) << endl;
-
+	cOutFile << "draw_logo=" << to_string(mDrawLogo) << endl;
+	cOutFile << "draw_bg=" << to_string(mDrawBackground) << endl;
+	cOutFile << "color_mode=" << to_string(static_cast<int>(mColorMode)) << endl;
 	cOutFile.close();
 }
 #pragma endregion Setup
@@ -454,7 +473,7 @@ void DS4ParticlesApp::updateCV()
 					DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint, cOutPoint);
 					if (dx % mCloudRes == 0 && dy%mCloudRes == 0)
 						mCloudPoints.push_back(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]));
-					else if (dy >= S_DEPTH_SIZE.y - 2 && dx%mCloudRes == 0)
+					if (dy >= S_DEPTH_SIZE.y - 2 && dx%mCloudRes == 0)
 						mBorderPoints.push_back(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]));
 				}
 			}
@@ -580,8 +599,7 @@ void DS4ParticlesApp::drawRunning()
 	if (mDrawBackground)
 	{
 		gl::setMatricesWindow(getWindowSize());
-		//gl::draw(mBackground, Vec2i::zero());
-		gl::draw(mBackground, Rectf(0,0,S_APP_SIZE.x, S_APP_SIZE.y));
+		gl::draw(mBackground, Vec2i::zero());
 	}
 
 	gl::setMatrices(mMayaCam.getCamera());
@@ -592,9 +610,9 @@ void DS4ParticlesApp::drawRunning()
 	gl::enable(GL_POINT_SIZE);
 
 	//Point Cloud
-	if (mColorMode==COLOR_MODE_BLUE)
+	if (mColorMode == COLOR_MODE_BLUE || mColorMode == COLOR_MODE_BLUE_P)
 		gl::color(mIntelDarkBlue);
-	else if (mColorMode == COLOR_MODE_GOLD)
+	else if (mColorMode == COLOR_MODE_GOLD || mColorMode == COLOR_MODE_GOLD_P)
 		gl::color(mIntelOrange);
 
 	glPointSize(mPointSize);
@@ -608,9 +626,9 @@ void DS4ParticlesApp::drawRunning()
 
 	//Lightning Bolts
 	glPointSize(mBoltWidth*mMagMean*mBoltWidthScale);
-	if (mColorMode == COLOR_MODE_BLUE)
+	if (mColorMode == COLOR_MODE_BLUE || mColorMode == COLOR_MODE_GOLD_P)
 		gl::color(ColorA(mIntelPaleBlue.r, mIntelPaleBlue.g, mIntelPaleBlue.b, mMagMean*mBoltAlphaScale));
-	else if (mColorMode == COLOR_MODE_GOLD)
+	else if (mColorMode == COLOR_MODE_GOLD || mColorMode == COLOR_MODE_BLUE_P)
 		gl::color(ColorA(mIntelYellow.r, mIntelYellow.g, mIntelYellow.b, mMagMean*mBoltAlphaScale));
 	gl::begin(GL_POINTS);
 	for (auto pit2 : mContourPoints)
@@ -619,10 +637,10 @@ void DS4ParticlesApp::drawRunning()
 	}
 	gl::end();
 
-	//glPointSize(mBoltWidth);
-	if (mColorMode == COLOR_MODE_BLUE)
+	glPointSize(mBoltWidth);
+	if (mColorMode == COLOR_MODE_BLUE || mColorMode == COLOR_MODE_GOLD_P)
 		gl::color(ColorA(mIntelPaleBlue.r, mIntelPaleBlue.g, mIntelPaleBlue.b, 0.75f));
-	else if (mColorMode == COLOR_MODE_GOLD)
+	else if (mColorMode == COLOR_MODE_GOLD || mColorMode == COLOR_MODE_BLUE_P)
 		gl::color(ColorA(mIntelOrange.r, mIntelOrange.g, mIntelOrange.b, 0.75f));
 	gl::begin(GL_POINTS);
 	for (auto bpit : mBorderPoints)
@@ -633,9 +651,9 @@ void DS4ParticlesApp::drawRunning()
 
 	//Particles
 	glPointSize(mParticleSize);
-	if (mColorMode == COLOR_MODE_BLUE)
+	if (mColorMode == COLOR_MODE_BLUE || mColorMode == COLOR_MODE_GOLD_P)
 		gl::color(ColorA(mIntelBlue.r, mIntelBlue.g, mIntelBlue.b, 0.75f));
-	else if (mColorMode == COLOR_MODE_GOLD)
+	else if (mColorMode == COLOR_MODE_GOLD || mColorMode == COLOR_MODE_BLUE_P)
 		gl::color(ColorA(mIntelYellow.r, mIntelYellow.g, mIntelYellow.b, 0.75f));
 	mParticleSystem.display();
 	gl::popMatrices();
@@ -646,7 +664,7 @@ void DS4ParticlesApp::drawRunning()
 	//Logo
 	if (mDrawLogo)
 	{
-		gl::setMatricesWindow(getWindowWidth(), getWindowHeight());
+		gl::setMatricesWindow(getWindowSize());
 		float cX = getWindowWidth() - S_LOGO_SIZE.x - 10;
 		float cY = getWindowHeight() - S_LOGO_SIZE.y - 10;
 		gl::color(Color::white());
