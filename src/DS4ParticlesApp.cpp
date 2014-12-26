@@ -11,6 +11,7 @@ namespace bfs = boost::filesystem;
 static Vec2i S_DEPTH_SIZE(480, 360);
 static Vec2i S_APP_SIZE(1280, 800);
 static size_t S_MAX_PARTICLES = 5000;
+static Vec2i S_LOGO_SIZE(192, 48);
 
 #pragma region Cinder Loop
 void DS4ParticlesApp::prepareSettings(Settings *pSettings)
@@ -68,6 +69,13 @@ void DS4ParticlesApp::keyDown(KeyEvent pEvent)
 	case 'l':
 		mDrawLogo = !mDrawLogo;
 		break;
+	case 'c':
+	{
+		int cColorMode = static_cast<int>(mColorMode);
+		cColorMode = (cColorMode + 1) % NUM_COLORMODES;
+		mColorMode = static_cast<DS4PColorMode>(cColorMode);
+		break;
+	}
 	}
 }
 
@@ -165,6 +173,7 @@ void DS4ParticlesApp::setupScene()
 
 	//mBackground = gl::Texture(loadImage(loadAsset("background.png")));
 	mBackground = gl::Texture(loadImage(loadAsset("TEST_bg.jpg")));
+	mLogo = gl::Texture(loadImage(loadAsset("rs_badge.png")));
 	mDrawBackground = false;
 	mDrawLogo = false;
 }
@@ -506,7 +515,7 @@ void DS4ParticlesApp::updateCV()
 void DS4ParticlesApp::drawDebug()
 {
 	gl::clear(Color::black());
-	gl::setMatricesWindow(S_APP_SIZE.x, S_APP_SIZE.y);
+	gl::setMatricesWindow(getWindowWidth(), getWindowHeight());
 	gl::color(Color::white());
 	
 	if (mTexBase)
@@ -585,6 +594,9 @@ void DS4ParticlesApp::drawRunning()
 	//Point Cloud
 	if (mColorMode==COLOR_MODE_BLUE)
 		gl::color(mIntelDarkBlue);
+	else if (mColorMode == COLOR_MODE_GOLD)
+		gl::color(mIntelOrange);
+
 	glPointSize(mPointSize);
 	gl::begin(GL_POINTS);
 
@@ -598,6 +610,8 @@ void DS4ParticlesApp::drawRunning()
 	glPointSize(mBoltWidth*mMagMean*mBoltWidthScale);
 	if (mColorMode == COLOR_MODE_BLUE)
 		gl::color(ColorA(mIntelPaleBlue.r, mIntelPaleBlue.g, mIntelPaleBlue.b, mMagMean*mBoltAlphaScale));
+	else if (mColorMode == COLOR_MODE_GOLD)
+		gl::color(ColorA(mIntelYellow.r, mIntelYellow.g, mIntelYellow.b, mMagMean*mBoltAlphaScale));
 	gl::begin(GL_POINTS);
 	for (auto pit2 : mContourPoints)
 	{
@@ -607,8 +621,9 @@ void DS4ParticlesApp::drawRunning()
 
 	//glPointSize(mBoltWidth);
 	if (mColorMode == COLOR_MODE_BLUE)
-		gl::color(mIntelDarkBlue);
-	gl::color(ColorA(mIntelPaleBlue.r, mIntelPaleBlue.g, mIntelPaleBlue.b, 0.75f));
+		gl::color(ColorA(mIntelPaleBlue.r, mIntelPaleBlue.g, mIntelPaleBlue.b, 0.75f));
+	else if (mColorMode == COLOR_MODE_GOLD)
+		gl::color(ColorA(mIntelOrange.r, mIntelOrange.g, mIntelOrange.b, 0.75f));
 	gl::begin(GL_POINTS);
 	for (auto bpit : mBorderPoints)
 	{
@@ -620,12 +635,23 @@ void DS4ParticlesApp::drawRunning()
 	glPointSize(mParticleSize);
 	if (mColorMode == COLOR_MODE_BLUE)
 		gl::color(ColorA(mIntelBlue.r, mIntelBlue.g, mIntelBlue.b, 0.75f));
+	else if (mColorMode == COLOR_MODE_GOLD)
+		gl::color(ColorA(mIntelYellow.r, mIntelYellow.g, mIntelYellow.b, 0.75f));
 	mParticleSystem.display();
 	gl::popMatrices();
 
 	if (mCamInfo)
 		drawCamInfo();
 
+	//Logo
+	if (mDrawLogo)
+	{
+		gl::setMatricesWindow(getWindowWidth(), getWindowHeight());
+		float cX = getWindowWidth() - S_LOGO_SIZE.x - 10;
+		float cY = getWindowHeight() - S_LOGO_SIZE.y - 10;
+		gl::color(Color::white());
+		gl::draw(mLogo, Rectf(cX, cY, cX+S_LOGO_SIZE.x, cY+S_LOGO_SIZE.y));
+	}
 	gl::disableAlphaBlending();
 	gl::disable(GL_POINT_SIZE);
 }

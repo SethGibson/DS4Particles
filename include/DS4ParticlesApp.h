@@ -42,10 +42,13 @@ public:
 	void draw();
 	void shutdown();
 
+	const int NUM_COLORMODES = 4;
 	enum DS4PColorMode
 	{
-		COLOR_MODE_BLUE,
-		COLOR_MODE_GOLD
+		COLOR_MODE_BLUE=0,
+		COLOR_MODE_GOLD,
+		COLOR_MODE_BLUE_P,
+		COLOR_MODE_GOLD_P
 	};
 
 private:
