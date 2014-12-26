@@ -288,6 +288,7 @@ void DS4ParticlesApp::readConfig()
 		if (cConfigVars.count("cloud_res"))
 			mCloudRes = cConfigVars["cloud_res"].as<int>();
 		else
+
 			mCloudRes = 2;
 		if (cConfigVars.count("bolt_res"))
 			mBoltRes = cConfigVars["bolt_res"].as<int>();
@@ -559,8 +560,8 @@ void DS4ParticlesApp::drawRunning()
 {
 	gl::clear(Color::black());
 	gl::color(Color::white());
-	gl::setMatricesWindow(getWindowSize());
-	gl::draw(mBackground, Vec2i::zero());
+	//gl::setMatricesWindow(getWindowSize());
+	//gl::draw(mBackground, Vec2i::zero());
 
 	gl::setMatrices(mMayaCam.getCamera());
 	gl::pushMatrices();
