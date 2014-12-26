@@ -438,52 +438,49 @@ void DS4ParticlesApp::updateCV()
 		}
 	}
 
-	if (getElapsedFrames() % mFramesSpawn == 0)
+	
+	//if (getElapsedFrames() % mFramesSpawn == 0)
+	//{
+	mContours.clear();
+	mContourPoints.clear();
+
+	cv::absdiff(mMatCurrent, mMatPrev, mMatDiff);
+	cv::findContours(mMatDiff, mContours, CV_RETR_LIST, CV_CHAIN_APPROX_NONE);
+
+	for (auto cContour : mContours)
 	{
-		mContours.clear();
-		mContourPoints.clear();
-
-		cv::absdiff(mMatCurrent, mMatPrev, mMatDiff);
-		cv::findContours(mMatDiff, mContours, CV_RETR_LIST, CV_CHAIN_APPROX_NONE);
-
-		for (auto cContour : mContours)
+		if (cv::contourArea(cContour, false) > mSizeMin)
 		{
-			if (cv::contourArea(cContour, false) > mSizeMin)
+			for (int vi = 0; vi < cContour.size(); vi++)
 			{
-				for (int vi = 0; vi < cContour.size(); vi++)
+				cv::Point cPoint = cContour[vi];
+				if (!mIsDebug && (vi % mSpawnRes == 0) && (getElapsedFrames() % mFramesSpawn == 0))
 				{
-					cv::Point cPoint = cContour[vi];
-					if (!mIsDebug)
+					uint16_t cZ = mPrevDepthBuffer[cPoint.y*S_DEPTH_SIZE.x + cPoint.x];
+					if (cZ>mDepthMin&&cZ < mDepthMax)
 					{
-						if (vi % mSpawnRes == 0)
-						{
-							uint16_t cZ = mPrevDepthBuffer[cPoint.y*S_DEPTH_SIZE.x + cPoint.x];
-							if (cZ>mDepthMin&&cZ < mDepthMax)
-							{
-								float cInPoint[] = { static_cast<float>(cPoint.x), static_cast<float>(cPoint.y), cZ }, cOutPoint[3];
-								DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint, cOutPoint);
-								if (mParticleSystem.count() < mNumParticles&&cOutPoint[1] < 50)
-									mParticleSystem.add(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]), Vec3f(randFloat(-0.15f, 0.15f), randFloat(-2, -6), randFloat(0, -1)), Vec2f(mAgeMin, mAgeMax));
-							}
-						}
+						float cInPoint[] = { static_cast<float>(cPoint.x), static_cast<float>(cPoint.y), cZ }, cOutPoint[3];
+						DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint, cOutPoint);
+						if (mParticleSystem.count() < mNumParticles&&cOutPoint[1] < 50)
+							mParticleSystem.add(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]), Vec3f(randFloat(-0.15f, 0.15f), randFloat(-2, -6), randFloat(0, -1)), Vec2f(mAgeMin, mAgeMax));
 					}
+				}
 
-					uint16_t cZ2 = mDepthBuffer[cPoint.y*S_DEPTH_SIZE.x + cPoint.x];
-					if (cZ2>mDepthMin&&cZ2 < mDepthMax)
-					{
-						float cInPoint2[] = { static_cast<float>(cPoint.x), static_cast<float>(cPoint.y), cZ2 }, cOutPoint2[3];
-						DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint2, cOutPoint2);
-						mContourPoints.push_back(Vec3f(cOutPoint2[0], -cOutPoint2[1], cOutPoint2[2]));
-					}
+				uint16_t cZ2 = mDepthBuffer[cPoint.y*S_DEPTH_SIZE.x + cPoint.x];
+				if (cZ2>mDepthMin&&cZ2 < mDepthMax)
+				{
+					float cInPoint2[] = { static_cast<float>(cPoint.x), static_cast<float>(cPoint.y), cZ2 }, cOutPoint2[3];
+					DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint2, cOutPoint2);
+					mContourPoints.push_back(Vec3f(cOutPoint2[0], -cOutPoint2[1], cOutPoint2[2]));
 				}
 			}
 		}
-
-		mMatCurrent.copyTo(mMatPrev);
-		memcpy(mPrevDepthBuffer, mDepthBuffer, (size_t)(S_DEPTH_SIZE.x*S_DEPTH_SIZE.y*sizeof(uint16_t)));
-		if (mIsDebug)
-			mTexBlob = gl::Texture(fromOcv(mMatDiff));
 	}
+
+	mMatCurrent.copyTo(mMatPrev);
+	memcpy(mPrevDepthBuffer, mDepthBuffer, (size_t)(S_DEPTH_SIZE.x*S_DEPTH_SIZE.y*sizeof(uint16_t)));
+	if (mIsDebug)
+		mTexBlob = gl::Texture(fromOcv(mMatDiff));
 
 	if (mIsDebug)
 		mTexBase = gl::Texture(fromOcv(mMatCurrent));
