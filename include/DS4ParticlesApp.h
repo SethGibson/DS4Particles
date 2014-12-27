@@ -105,7 +105,7 @@ private:
 	//DS
 	DSAPIRef mDSAPI;
 	DSCalibIntrinsicsRectified mZIntrinsics;
-	uint8_t *mDepthPixels;
+	uint8_t *mDepthPixels, *mPrevDepthPixels;
 	uint16_t *mDepthBuffer, *mPrevDepthBuffer;
 
 	//OpenCV
@@ -116,12 +116,31 @@ private:
 	vector<vector<cv::Point>> mContoursKeep;
 	vector<cv::Vec4i> mHierarchy;
 
-	//Debug
+	//Settings
 	params::InterfaceGlRef mGUI;
-	int mDepthMin, mDepthMax, mFramesSpawn, mCloudRes, mSpawnRes, mBoltRes, mAgeMin, mAgeMax;
-	size_t mNumParticles;
-	double mThresh, mSizeMin;
-	float mFPS, mPointSize, mBoltWidth, mBoltWidthScale, mBoltAlphaScale, mParticleSize; 
+	int mDepthMin,
+		mDepthMax,
+		mFramesSpawn,
+		mCloudRes,
+		mSpawnRes,
+		mBoltRes,
+		mAgeMin,
+		mAgeMax,
+		mLogoSize;
+
+	int mNumParticles;
+	double	mThresh,
+			mSizeMin;
+	float	mFPS,
+			mPointSize,
+			mBoltWidthMin,
+			mBoltWidthMax,
+			mParticleSize,
+			mBoltAlphaMin,
+			mBoltAlphaMax,
+			mParticleAlpha,
+			mLogoAlpha,
+			mBGAlpha;
 	bool mIsDebug;
 	gl::Texture mTexBase;
 	gl::Texture mTexCountour;

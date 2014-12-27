@@ -9,8 +9,7 @@
 namespace bfs = boost::filesystem;
 
 static Vec2i S_DEPTH_SIZE(480, 360);
-static Vec2i S_APP_SIZE(1280, 800);
-static size_t S_MAX_PARTICLES = 5000;
+static Vec2i S_APP_SIZE(1280, 720);
 static Vec2i S_LOGO_SIZE(192, 48);
 
 #pragma region Cinder Loop
@@ -20,6 +19,7 @@ void DS4ParticlesApp::prepareSettings(Settings *pSettings)
 	pSettings->setWindowPos(20, 40);
 	pSettings->setFrameRate(60);
 	//pSettings->setFullScreen(true);
+	//pSettings->setAlwaysOnTop(false);
 }
 
 void DS4ParticlesApp::setup()
@@ -74,6 +74,34 @@ void DS4ParticlesApp::keyDown(KeyEvent pEvent)
 		int cColorMode = static_cast<int>(mColorMode);
 		cColorMode = (cColorMode + 1) % NUM_COLORMODES;
 		mColorMode = static_cast<DS4PColorMode>(cColorMode);
+		break;
+	}
+	case 'a':
+	{
+		if (pEvent.isControlDown())
+			mLogoAlpha = math<float>::max(0, (mLogoAlpha - 0.1f));
+		else
+			mLogoSize = math<float>::min(512, (mLogoSize + 4));
+		break;
+	}
+	case 's':
+	{
+		if (pEvent.isControlDown())
+			mLogoAlpha = math<float>::min(1, (mLogoAlpha + 0.1f));
+		else
+			mLogoSize = math<float>::max(0, (mLogoSize - 4));
+		break;
+	}
+	case 'z':
+	{
+		if (pEvent.isControlDown())
+			mBGAlpha = math<float>::max(0, (mBGAlpha - 0.1f));
+		break;
+	}
+	case 'x':
+	{
+		if (pEvent.isControlDown())
+			mBGAlpha = math<float>::min(1, (mBGAlpha + 0.1f));
 		break;
 	}
 	}
@@ -194,42 +222,53 @@ void DS4ParticlesApp::setupGUI()
 		mBoltRes = 2;  //Bolt Resolution
 
 		mPointSize = 2.0f;		//Point Size
-		mBoltWidth = 2.0f;		//Bolt Width
 
 		mNumParticles = 5000;
 		mParticleSize = 2.0f;	//Particle Size
 		mAgeMin = 30;			//Min Particle Age
 		mAgeMax = 120;			//Max Particle Age
 		mFramesSpawn = 5;
-		mBoltWidthScale = 2.0f;
-		mBoltAlphaScale = 2.0f;
-		mDrawBackground = false;
+		mBoltWidthMin = 0.1f;
+		mBoltWidthMax = 8.0f;
+		mBoltAlphaMin = 0.0f;
+		mBoltAlphaMax = 1.0f;
 		mDrawLogo = false;
+		mLogoSize = 128;
+		mLogoAlpha = 1.0f;
+		mDrawBackground = false;
+		mBGAlpha = 0.5f;
 		mColorMode = COLOR_MODE_BLUE;
 	}
-	mGUI = params::InterfaceGl::create("Config", Vec2i(250, 400));
+	mGUI = params::InterfaceGl::create("Config", Vec2i(250, 450));
 	mGUI->addText("Depth Params");
-	mGUI->addParam("Min Depth", &mDepthMin);
-	mGUI->addParam("Max Depth", &mDepthMax);
-	mGUI->addParam("Threshold", &mThresh);
-	mGUI->addParam("Min Poly Area", &mSizeMin);
+	mGUI->addParam("Min Depth", &mDepthMin,"min=0 max=1000 step=10");
+	mGUI->addParam("Max Depth", &mDepthMax, "min=1500 max=5000 step=10");
+	mGUI->addParam("Threshold", &mThresh, "min=0 max=255 step=1");
+	mGUI->addParam("Min Poly Area", &mSizeMin, "min=0 step=0.1");
 	mGUI->addSeparator();
 	mGUI->addText("Point Cloud Params");
-	mGUI->addParam("Cloud Res", &mCloudRes);
-	mGUI->addParam("Bolt Res", &mBoltRes);
-	mGUI->addParam("Spawner Res", &mSpawnRes);
-	mGUI->addParam("Point Size", &mPointSize);
-	mGUI->addParam("Bolt Width", &mBoltWidth);
-	mGUI->addParam("Bolt Scale", &mBoltWidthScale);
-	mGUI->addParam("Bolt Brightness", &mBoltAlphaScale);
+	mGUI->addParam("Cloud Res", &mCloudRes, "min=1 max=8 step=1");
+	mGUI->addParam("Bolt Res", &mBoltRes, "min=1 max=8 step=1");
+	mGUI->addParam("Spawner Res", &mSpawnRes, "min=1 max=8 step=1");
+	mGUI->addParam("Point Size", &mPointSize, "min=0.1 max=10 step=0.1");
+	mGUI->addParam("Min Bolt Width", &mBoltWidthMin, "min=0.1 max=4 step=0.1");
+	mGUI->addParam("Max Bolt Width", &mBoltWidthMax, "min=4 max=10 step=0.1");
+	mGUI->addParam("Min Bolt Brightness", &mBoltAlphaMin, "min=0.01 max=0.5 step=0.01");
+	mGUI->addParam("Max Bolt Brightness", &mBoltAlphaMax, "min=0.05 max=1.0 step=0.01");
 	mGUI->addSeparator();
 	mGUI->addText("Particle Params");
-	mGUI->addParam("Particle Count", &mNumParticles);
-	mGUI->addParam("Particle Size", &mParticleSize);
-	mGUI->addParam("Min Age", &mAgeMin);
-	mGUI->addParam("Max Age", &mAgeMax);
-	mGUI->addParam("Spawn Rate", &mFramesSpawn);
-	mGUI->addParam("Avg Framerate", &mFPS);
+	mGUI->addParam("Particle Count", &mNumParticles, "min=0 max=10000 step=100");
+	mGUI->addParam("Particle Size", &mParticleSize, "min=0.1 max=10 step=0.1");
+	mGUI->addParam("Particle Brightness", &mParticleAlpha, "min=0.01 max=1 step=0.01");
+	mGUI->addParam("Min Age", &mAgeMin, "min=0 max=30 step=1");
+	mGUI->addParam("Max Age", &mAgeMax, "min=60 max=600 step=15");
+	mGUI->addParam("Spawn Rate", &mFramesSpawn, "min=1 max=10 step=1");
+	mGUI->addText("Logo / Background");
+	mGUI->addParam("Show Logo", &mDrawLogo);
+	mGUI->addParam("Logo Size", &mLogoSize, "min=64 max=512 step=4");
+	mGUI->addParam("Logo Brightness", &mLogoAlpha, "min=0.1 max=1.0 step=0.1");
+	mGUI->addParam("Show Background", &mDrawBackground);
+	mGUI->addParam("Background Brightness", &mBGAlpha, "min=0.1 max=1.0 step=0.1");
 	mGUI->addButton("Save Settings", std::bind(&DS4ParticlesApp::writeConfig, this));
 	mXDDLogo = gl::Texture(loadImage(loadAsset("xDDBadge.png")));
 	mCinderLogo = gl::Texture(loadImage(loadAsset("cinderBadge.png")));
@@ -275,18 +314,22 @@ void DS4ParticlesApp::readConfig()
 		("bolt_res", bpo::value<int>(), "Bolt Res")
 		("spawner_res", bpo::value<int>(), "Spawner Res")
 		("point_size", bpo::value<float>(), "Point Size")
-		("bolt_width", bpo::value<float>(), "Bolt Width")
-		("bolt_scale", bpo::value<float>(), "Bolt Scale")
-		("bolt_alpha", bpo::value<float>(), "Bolt Brightness")
-		("particle_count", bpo::value<size_t>(), "Particle Count")
+		("bolt_min", bpo::value<float>(), "Min Bolt Width")
+		("bolt_max", bpo::value<float>(), "Max Bolt Width")
+		("bolt_a_min", bpo::value<float>(), "Min Bolt Alpha")
+		("bolt_a_max", bpo::value<float>(), "Max Bolt Alpha")
+		("particle_count", bpo::value<int>(), "Particle Count")
 		("particle_size", bpo::value<float>(), "Particle Size")
+		("particle_alpha", bpo::value<float>(), "Particle Alpha")
 		("min_age", bpo::value<int>(), "Min Age")
 		("max_age", bpo::value<int>(), "Max Age")
 		("spawn_rate", bpo::value<int>(), "Spawn Rate")
 		("draw_logo", bpo::value<bool>(), "Draw Logo")
+		("logo_size", bpo::value<int>(), "Logo Size")
+		("logo_alpha", bpo::value<float>(), "Logo Brightness")
 		("draw_bg", bpo::value<bool>(), "Draw Background")
+		("bg_alpha", bpo::value<float>(), "Background Brightness")
 		("color_mode", bpo::value<int>(), "Color Mode")
-
 	;
 
 	try
@@ -313,7 +356,6 @@ void DS4ParticlesApp::readConfig()
 		if (cConfigVars.count("cloud_res"))
 			mCloudRes = cConfigVars["cloud_res"].as<int>();
 		else
-
 			mCloudRes = 2;
 		if (cConfigVars.count("bolt_res"))
 			mBoltRes = cConfigVars["bolt_res"].as<int>();
@@ -327,26 +369,34 @@ void DS4ParticlesApp::readConfig()
 			mPointSize = cConfigVars["point_size"].as<float>();
 		else
 			mPointSize = 2.0f;
-		if (cConfigVars.count("bolt_width"))
-			mBoltWidth= cConfigVars["bolt_width"].as<float>();
+		if (cConfigVars.count("bolt_min"))
+			mBoltWidthMin= cConfigVars["bolt_min"].as<float>();
 		else
-			mBoltWidth = 2.0f;
-		if (cConfigVars.count("bolt_scale"))
-			mBoltWidthScale = cConfigVars["bolt_scale"].as<float>();
+			mBoltWidthMin = 0.5f;
+		if (cConfigVars.count("bolt_max"))
+			mBoltWidthMax = cConfigVars["bolt_max"].as<float>();
 		else
-			mBoltWidthScale = 2.0f;
-		if (cConfigVars.count("bolt_alpha"))
-			mBoltAlphaScale = cConfigVars["bolt_alpha"].as<float>();
+			mBoltWidthMax = 4.0f;
+		if (cConfigVars.count("bolt_a_min"))
+			mBoltAlphaMin = cConfigVars["bolt_a_min"].as<float>();
 		else
-			mBoltAlphaScale = 2.0f;
+			mBoltAlphaMin = 0.01f;
+		if (cConfigVars.count("bolt_a_max"))
+			mBoltAlphaMax = cConfigVars["bolt_a_max"].as<float>();
+		else
+			mBoltAlphaMax = 0.25f;
 		if (cConfigVars.count("particle_count"))
-			mNumParticles = cConfigVars["particle_count"].as<size_t>();
+			mNumParticles = cConfigVars["particle_count"].as<int>();
 		else
 			mNumParticles = 5000;
 		if (cConfigVars.count("particle_size"))
 			mParticleSize = cConfigVars["particle_size"].as<float>();
 		else
 			mParticleSize = 2.0f;
+		if (cConfigVars.count("particle_alpha"))
+			mParticleAlpha = cConfigVars["particle_alpha"].as<float>();
+		else
+			mParticleAlpha = 0.15f;
 		if (cConfigVars.count("min_age"))
 			mAgeMin = cConfigVars["min_age"].as<int>();
 		else
@@ -362,11 +412,23 @@ void DS4ParticlesApp::readConfig()
 		if (cConfigVars.count("draw_logo"))
 			mDrawLogo = cConfigVars["draw_logo"].as<bool>();
 		else
-			mFramesSpawn = false;
+			mDrawLogo = false;
+		if (cConfigVars.count("logo_size"))
+			mLogoSize = cConfigVars["logo_size"].as<int>();
+		else
+			mLogoSize = 128;
+		if (cConfigVars.count("logo_alpha"))
+			mLogoAlpha = cConfigVars["logo_alpha"].as<float>();
+		else
+			mLogoAlpha = 1.0f;
 		if (cConfigVars.count("draw_bg"))
 			mDrawBackground = cConfigVars["draw_bg"].as<bool>();
 		else
 			mDrawBackground = false;
+		if (cConfigVars.count("bg_alpha"))
+			mBGAlpha = cConfigVars["bg_alpha"].as<float>();
+		else
+			mBGAlpha = 0.5f;
 		if (cConfigVars.count("color_mode"))
 		{
 			int cColorMode = cConfigVars["color_mode"].as<int>();
@@ -378,12 +440,12 @@ void DS4ParticlesApp::readConfig()
 	catch (bpo::required_option &e)
 	{
 		console() << "Error parsing config file: " << e.what() << endl;
-		quit();
+		//quit();
 	}
 	catch (bpo::error &e)
 	{
 		console() << "Error parsing config file: " << e.what() << endl;
-		quit();
+		//quit();
 	}
 }
 
@@ -400,16 +462,21 @@ void DS4ParticlesApp::writeConfig()
 	cOutFile << "bolt_res=" << to_string(mBoltRes) << endl;
 	cOutFile << "spawner_res=" << to_string(mSpawnRes) << endl;
 	cOutFile << "point_size=" << to_string(mPointSize) << endl;
-	cOutFile << "bolt_width=" << to_string(mBoltWidth) << endl;
-	cOutFile << "bolt_scale=" << to_string(mBoltWidthScale) << endl;
-	cOutFile << "bolt_alpha=" << to_string(mBoltAlphaScale) << endl;
+	cOutFile << "bolt_min=" << to_string(mBoltWidthMin) << endl;
+	cOutFile << "bolt_max=" << to_string(mBoltWidthMax) << endl;
+	cOutFile << "bolt_a_min=" << to_string(mBoltAlphaMin) << endl;
+	cOutFile << "bolt_a_max=" << to_string(mBoltAlphaMax) << endl;
 	cOutFile << "particle_count=" << to_string(mNumParticles) << endl;
 	cOutFile << "particle_size=" << to_string(mParticleSize) << endl;
+	cOutFile << "particle_alpha=" << to_string(mParticleAlpha) << endl;
 	cOutFile << "min_age=" << to_string(mAgeMin) << endl;
 	cOutFile << "max_age=" << to_string(mAgeMax) << endl;
 	cOutFile << "spawn_rate=" << to_string(mFramesSpawn) << endl;
 	cOutFile << "draw_logo=" << to_string(mDrawLogo) << endl;
+	cOutFile << "logo_alpha=" << to_string(mLogoAlpha) << endl;
+	cOutFile << "logo_size=" << to_string(mLogoSize) << endl;
 	cOutFile << "draw_bg=" << to_string(mDrawBackground) << endl;
+	cOutFile << "bg_alpha=" << to_string(mBGAlpha) << endl;
 	cOutFile << "color_mode=" << to_string(static_cast<int>(mColorMode)) << endl;
 	cOutFile.close();
 }
@@ -425,6 +492,7 @@ void DS4ParticlesApp::updateAudio()
 	float cSum = 0.0f;
 	float cMax = -1.0f;
 	float cMin = 10000.0f;
+	mMagMean = 0.0f;
 	for (auto cV : mMagSpectrum)
 	{
 		if (cV > cMax)
@@ -433,11 +501,12 @@ void DS4ParticlesApp::updateAudio()
 			cMin = cV;
 		cSum += cV;
 	}
-
-	cSum /= (float)mMagSpectrum.size();
-	cMin = 0;
-	cMax = .00001f;
-	mMagMean = lmap<float>(cSum, cMin, cMax, 0, 1);
+	
+	if (mMagSpectrum.size() > 0)
+	{
+		cSum /= (float)mMagSpectrum.size();
+		mMagMean = math<float>::clamp(cSum * 10000, 0, 1);
+	}
 }
 
 void DS4ParticlesApp::updateCV()
@@ -468,12 +537,12 @@ void DS4ParticlesApp::updateCV()
 			{
 				float cDepthVal = (float)mDepthBuffer[dy*S_DEPTH_SIZE.x + dx];
 				float cInPoint[] = { static_cast<float>(dx), static_cast<float>(dy), cDepthVal }, cOutPoint[3];
-				if ((cDepthVal>mDepthMin&&cDepthVal < mDepthMax) && mMatCurrent.at<uint8_t>(dy, dx)>128)
+				if ((cDepthVal>mDepthMin&&cDepthVal < mDepthMax) && mMatCurrent.at<uint8_t>(dy, dx)==255)
 				{
 					DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint, cOutPoint);
 					if (dx % mCloudRes == 0 && dy%mCloudRes == 0)
 						mCloudPoints.push_back(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]));
-					if (dy >= S_DEPTH_SIZE.y - 2 && dx%mCloudRes == 0)
+					if (dy >= S_DEPTH_SIZE.y - 2)
 						mBorderPoints.push_back(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]));
 				}
 			}
@@ -538,14 +607,14 @@ void DS4ParticlesApp::drawDebug()
 	gl::color(Color::white());
 	
 	if (mTexBase)
-		gl::draw(mTexBase, Rectf(0, 0, S_APP_SIZE.x / 2, S_APP_SIZE.y / 2));
+		gl::draw(mTexBase, Rectf(0, 0, getWindowWidth() / 2, getWindowHeight() / 2));
 	if (mTexBlob)
-		gl::draw(mTexBlob, Rectf(0, S_APP_SIZE.y / 2, S_APP_SIZE.x / 2, S_APP_SIZE.y));
+		gl::draw(mTexBlob, Rectf(0, getWindowHeight() / 2, getWindowWidth() / 2, getWindowHeight()));
 	if (mContours.size() > 0)
 	{
 		gl::pushMatrices();
-		gl::translate(Vec2f(S_APP_SIZE.x / 2, S_APP_SIZE.y / 2));
-		gl::scale(Vec2f((S_APP_SIZE.x / (float)S_DEPTH_SIZE.x)*0.5f, (S_APP_SIZE.y / (float)S_DEPTH_SIZE.y)*0.5f));
+		gl::translate(Vec2f(getWindowWidth() / 2, getWindowHeight() / 2));
+		gl::scale(Vec2f((getWindowWidth() / (float)S_DEPTH_SIZE.x)*0.5f, (getWindowHeight() / (float)S_DEPTH_SIZE.y)*0.5f));
 		gl::color(mIntelGreen);
 		gl::begin(GL_POINTS);
 		glPointSize(2.0);
@@ -562,8 +631,8 @@ void DS4ParticlesApp::drawDebug()
 	if (mContours.size() > 0)
 	{
 		gl::pushMatrices();
-		gl::translate(Vec2f(S_APP_SIZE.x / 2, 0));
-		gl::scale(Vec2f((S_APP_SIZE.x / (float)S_DEPTH_SIZE.x)*0.5f, (S_APP_SIZE.y / (float)S_DEPTH_SIZE.y)*0.5f));
+		gl::translate(Vec2f(getWindowWidth() / 2, 0));
+		gl::scale(Vec2f((getWindowWidth() / (float)S_DEPTH_SIZE.x)*0.5f, (getWindowHeight() / (float)S_DEPTH_SIZE.y)*0.5f));
 		gl::color(mIntelYellow);
 		
 		for (auto cContour : mContours)
@@ -598,6 +667,7 @@ void DS4ParticlesApp::drawRunning()
 	gl::color(Color::white());
 	if (mDrawBackground)
 	{
+		gl::color(Color(mBGAlpha, mBGAlpha, mBGAlpha));
 		gl::setMatricesWindow(getWindowSize());
 		gl::draw(mBackground, Vec2i::zero());
 	}
@@ -625,11 +695,13 @@ void DS4ParticlesApp::drawRunning()
 	gl::end();
 
 	//Lightning Bolts
-	glPointSize(mBoltWidth*mMagMean*mBoltWidthScale);
+	float cPointSize = lmap<float>(mMagMean, 0, 1, mBoltWidthMin, mBoltWidthMax);
+	float cAlpha = lmap<float>(mMagMean,0,1,mBoltAlphaMin, mBoltAlphaMax);
+	glPointSize(cPointSize);
 	if (mColorMode == COLOR_MODE_BLUE || mColorMode == COLOR_MODE_GOLD_P)
-		gl::color(ColorA(mIntelPaleBlue.r, mIntelPaleBlue.g, mIntelPaleBlue.b, mMagMean*mBoltAlphaScale));
+		gl::color(ColorA(mIntelPaleBlue.r, mIntelPaleBlue.g, mIntelPaleBlue.b, cAlpha));
 	else if (mColorMode == COLOR_MODE_GOLD || mColorMode == COLOR_MODE_BLUE_P)
-		gl::color(ColorA(mIntelYellow.r, mIntelYellow.g, mIntelYellow.b, mMagMean*mBoltAlphaScale));
+		gl::color(ColorA(mIntelYellow.r, mIntelYellow.g, mIntelYellow.b, cAlpha));
 	gl::begin(GL_POINTS);
 	for (auto pit2 : mContourPoints)
 	{
@@ -637,11 +709,6 @@ void DS4ParticlesApp::drawRunning()
 	}
 	gl::end();
 
-	glPointSize(mBoltWidth);
-	if (mColorMode == COLOR_MODE_BLUE || mColorMode == COLOR_MODE_GOLD_P)
-		gl::color(ColorA(mIntelPaleBlue.r, mIntelPaleBlue.g, mIntelPaleBlue.b, 0.75f));
-	else if (mColorMode == COLOR_MODE_GOLD || mColorMode == COLOR_MODE_BLUE_P)
-		gl::color(ColorA(mIntelOrange.r, mIntelOrange.g, mIntelOrange.b, 0.75f));
 	gl::begin(GL_POINTS);
 	for (auto bpit : mBorderPoints)
 	{
@@ -652,9 +719,9 @@ void DS4ParticlesApp::drawRunning()
 	//Particles
 	glPointSize(mParticleSize);
 	if (mColorMode == COLOR_MODE_BLUE || mColorMode == COLOR_MODE_GOLD_P)
-		gl::color(ColorA(mIntelBlue.r, mIntelBlue.g, mIntelBlue.b, 0.75f));
+		gl::color(ColorA(mIntelBlue.r, mIntelBlue.g, mIntelBlue.b, mParticleAlpha));
 	else if (mColorMode == COLOR_MODE_GOLD || mColorMode == COLOR_MODE_BLUE_P)
-		gl::color(ColorA(mIntelYellow.r, mIntelYellow.g, mIntelYellow.b, 0.75f));
+		gl::color(ColorA(mIntelYellow.r, mIntelYellow.g, mIntelYellow.b, mParticleAlpha));
 	mParticleSystem.display();
 	gl::popMatrices();
 
@@ -665,10 +732,12 @@ void DS4ParticlesApp::drawRunning()
 	if (mDrawLogo)
 	{
 		gl::setMatricesWindow(getWindowSize());
-		float cX = getWindowWidth() - S_LOGO_SIZE.x - 10;
-		float cY = getWindowHeight() - S_LOGO_SIZE.y - 10;
-		gl::color(Color::white());
-		gl::draw(mLogo, Rectf(cX, cY, cX+S_LOGO_SIZE.x, cY+S_LOGO_SIZE.y));
+		int cLogoX = mLogoSize;
+		int cLogoY = mLogoSize / 4;
+		float cX = getWindowWidth() - cLogoX - 10;
+		float cY = getWindowHeight() - cLogoY - 10;
+		gl::color(Color(mLogoAlpha,mLogoAlpha,mLogoAlpha));
+		gl::draw(mLogo, Rectf(cX, cY, cX+cLogoX, cY+cLogoY));
 	}
 	gl::disableAlphaBlending();
 	gl::disable(GL_POINT_SIZE);
@@ -676,7 +745,7 @@ void DS4ParticlesApp::drawRunning()
 
 void DS4ParticlesApp::drawCamInfo()
 {
-	gl::setMatricesWindow(S_APP_SIZE.x, S_APP_SIZE.y);
+	gl::setMatricesWindow(getWindowSize());
 	Vec3f cEyePoint(mMayaCam.getCamera().getEyePoint());
 	Vec3f cViewDir(mMayaCam.getCamera().getViewDirection());
 
