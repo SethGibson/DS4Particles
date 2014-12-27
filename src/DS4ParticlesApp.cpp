@@ -79,7 +79,7 @@ void DS4ParticlesApp::keyDown(KeyEvent pEvent)
 	case 'a':
 	{
 		if (pEvent.isControlDown())
-			mLogoAlpha = math<float>::max(0, (mLogoAlpha - 0.1f));
+			mLogoAlpha = math<float>::max(0, (mLogoAlpha - 0.02f));
 		else
 			mLogoSize = math<float>::min(512, (mLogoSize + 4));
 		break;
@@ -87,7 +87,7 @@ void DS4ParticlesApp::keyDown(KeyEvent pEvent)
 	case 's':
 	{
 		if (pEvent.isControlDown())
-			mLogoAlpha = math<float>::min(1, (mLogoAlpha + 0.1f));
+			mLogoAlpha = math<float>::min(1, (mLogoAlpha + 0.02f));
 		else
 			mLogoSize = math<float>::max(0, (mLogoSize - 4));
 		break;
@@ -95,13 +95,13 @@ void DS4ParticlesApp::keyDown(KeyEvent pEvent)
 	case 'z':
 	{
 		if (pEvent.isControlDown())
-			mBGAlpha = math<float>::max(0, (mBGAlpha - 0.1f));
+			mBGAlpha = math<float>::max(0, (mBGAlpha - 0.02f));
 		break;
 	}
 	case 'x':
 	{
 		if (pEvent.isControlDown())
-			mBGAlpha = math<float>::min(1, (mBGAlpha + 0.1f));
+			mBGAlpha = math<float>::min(1, (mBGAlpha + 0.02f));
 		break;
 	}
 	}
@@ -240,7 +240,7 @@ void DS4ParticlesApp::setupGUI()
 		mBGAlpha = 0.5f;
 		mColorMode = COLOR_MODE_BLUE;
 	}
-	mGUI = params::InterfaceGl::create("Config", Vec2i(250, 450));
+	mGUI = params::InterfaceGl::create("Config", Vec2i(250, 520));
 	mGUI->addText("Depth Params");
 	mGUI->addParam("Min Depth", &mDepthMin,"min=0 max=1000 step=10");
 	mGUI->addParam("Max Depth", &mDepthMax, "min=1500 max=5000 step=10");
@@ -265,7 +265,8 @@ void DS4ParticlesApp::setupGUI()
 	mGUI->addParam("Max Age", &mAgeMax, "min=60 max=600 step=15");
 	mGUI->addParam("Spawn Rate", &mFramesSpawn, "min=1 max=10 step=1");
 	mGUI->addParam("Spawn Level", &mSpawnLevel, "min=0 max=1 step=0.01");
-	mGUI->addText("Logo / Background");
+	mGUI->addSeparator();
+	mGUI->addText("Logo / Background Params");
 	mGUI->addParam("Show Logo", &mDrawLogo);
 	mGUI->addParam("Logo Size", &mLogoSize, "min=64 max=512 step=4");
 	mGUI->addParam("Logo Brightness", &mLogoAlpha, "min=0.1 max=1.0 step=0.1");
