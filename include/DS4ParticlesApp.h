@@ -136,6 +136,7 @@ private:
 			mBoltWidthMin,
 			mBoltWidthMax,
 			mParticleSize,
+			mSpawnLevel,
 			mBoltAlphaMin,
 			mBoltAlphaMax,
 			mParticleAlpha,

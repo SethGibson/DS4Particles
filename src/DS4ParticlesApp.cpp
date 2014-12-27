@@ -228,6 +228,7 @@ void DS4ParticlesApp::setupGUI()
 		mAgeMin = 30;			//Min Particle Age
 		mAgeMax = 120;			//Max Particle Age
 		mFramesSpawn = 5;
+		mSpawnLevel = 0.15f;
 		mBoltWidthMin = 0.1f;
 		mBoltWidthMax = 8.0f;
 		mBoltAlphaMin = 0.0f;
@@ -263,6 +264,7 @@ void DS4ParticlesApp::setupGUI()
 	mGUI->addParam("Min Age", &mAgeMin, "min=0 max=30 step=1");
 	mGUI->addParam("Max Age", &mAgeMax, "min=60 max=600 step=15");
 	mGUI->addParam("Spawn Rate", &mFramesSpawn, "min=1 max=10 step=1");
+	mGUI->addParam("Spawn Level", &mSpawnLevel, "min=0 max=1 step=0.01");
 	mGUI->addText("Logo / Background");
 	mGUI->addParam("Show Logo", &mDrawLogo);
 	mGUI->addParam("Logo Size", &mLogoSize, "min=64 max=512 step=4");
@@ -324,6 +326,7 @@ void DS4ParticlesApp::readConfig()
 		("min_age", bpo::value<int>(), "Min Age")
 		("max_age", bpo::value<int>(), "Max Age")
 		("spawn_rate", bpo::value<int>(), "Spawn Rate")
+		("spawn_level", bpo::value<float>(), "Spawn Level")
 		("draw_logo", bpo::value<bool>(), "Draw Logo")
 		("logo_size", bpo::value<int>(), "Logo Size")
 		("logo_alpha", bpo::value<float>(), "Logo Brightness")
@@ -409,6 +412,11 @@ void DS4ParticlesApp::readConfig()
 			mFramesSpawn = cConfigVars["spawn_rate"].as<int>();
 		else
 			mFramesSpawn = 5;
+		if (cConfigVars.count("spawn_level"))
+			mSpawnLevel = cConfigVars["spawn_level"].as<float>();
+		else
+			mSpawnLevel = 0.15f;
+
 		if (cConfigVars.count("draw_logo"))
 			mDrawLogo = cConfigVars["draw_logo"].as<bool>();
 		else
@@ -469,6 +477,7 @@ void DS4ParticlesApp::writeConfig()
 	cOutFile << "particle_count=" << to_string(mNumParticles) << endl;
 	cOutFile << "particle_size=" << to_string(mParticleSize) << endl;
 	cOutFile << "particle_alpha=" << to_string(mParticleAlpha) << endl;
+	cOutFile << "spawn_level=" << to_string(mSpawnLevel) << endl;
 	cOutFile << "min_age=" << to_string(mAgeMin) << endl;
 	cOutFile << "max_age=" << to_string(mAgeMax) << endl;
 	cOutFile << "spawn_rate=" << to_string(mFramesSpawn) << endl;
@@ -562,24 +571,29 @@ void DS4ParticlesApp::updateCV()
 			for (int vi = 0; vi < cContour.size(); vi++)
 			{
 				cv::Point cPoint = cContour[vi];
-				if (!mIsDebug && (vi % mSpawnRes == 0) && (getElapsedFrames() % mFramesSpawn == 0))
+				if (mMatPrev.at<uint8_t>(cPoint.y, cPoint.x) == 255)
 				{
-					uint16_t cZ = mPrevDepthBuffer[cPoint.y*S_DEPTH_SIZE.x + cPoint.x];
-					if (cZ>mDepthMin&&cZ < mDepthMax)
+					if (!mIsDebug && (vi % mSpawnRes == 0) && (getElapsedFrames() % mFramesSpawn == 0))
 					{
-						float cInPoint[] = { static_cast<float>(cPoint.x), static_cast<float>(cPoint.y), cZ }, cOutPoint[3];
-						DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint, cOutPoint);
-						if (mParticleSystem.count() < mNumParticles&&cOutPoint[1] < 50)
-							mParticleSystem.add(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]), Vec3f(randFloat(-0.15f, 0.15f), randFloat(-2, -6), randFloat(0, -1)), Vec2f(mAgeMin, mAgeMax));
+						uint16_t cZ = mPrevDepthBuffer[cPoint.y*S_DEPTH_SIZE.x + cPoint.x];
+						if (cZ>mDepthMin&&cZ < mDepthMax)
+						{
+							float cInPoint[] = { static_cast<float>(cPoint.x), static_cast<float>(cPoint.y), cZ }, cOutPoint[3];
+							DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint, cOutPoint);
+							if (mParticleSystem.count() < mNumParticles&&cOutPoint[1] < 50&&mMagMean>mSpawnLevel)
+								mParticleSystem.add(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]), Vec3f(randFloat(-0.15f, 0.15f), randFloat(-2, -6), randFloat(0, -1)), Vec2f(mAgeMin, mAgeMax));
+						}
 					}
 				}
-
-				uint16_t cZ2 = mDepthBuffer[cPoint.y*S_DEPTH_SIZE.x + cPoint.x];
-				if (cZ2>mDepthMin&&cZ2 < mDepthMax)
+				if (mMatCurrent.at<uint8_t>(cPoint.y, cPoint.x) == 255)
 				{
-					float cInPoint2[] = { static_cast<float>(cPoint.x), static_cast<float>(cPoint.y), cZ2 }, cOutPoint2[3];
-					DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint2, cOutPoint2);
-					mContourPoints.push_back(Vec3f(cOutPoint2[0], -cOutPoint2[1], cOutPoint2[2]));
+					uint16_t cZ2 = mDepthBuffer[cPoint.y*S_DEPTH_SIZE.x + cPoint.x];
+					if (cZ2 > mDepthMin&&cZ2 < mDepthMax)
+					{
+						float cInPoint2[] = { static_cast<float>(cPoint.x), static_cast<float>(cPoint.y), cZ2 }, cOutPoint2[3];
+						DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint2, cOutPoint2);
+						mContourPoints.push_back(Vec3f(cOutPoint2[0], -cOutPoint2[1], cOutPoint2[2]));
+					}
 				}
 			}
 		}
