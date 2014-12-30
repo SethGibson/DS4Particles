@@ -18,8 +18,9 @@ void DS4ParticlesApp::prepareSettings(Settings *pSettings)
 	pSettings->setWindowSize(S_APP_SIZE.x, S_APP_SIZE.y);
 	pSettings->setWindowPos(20, 40);
 	pSettings->setFrameRate(60);
-	//pSettings->setFullScreen(true);
-	//pSettings->setAlwaysOnTop(false);
+	pSettings->setTitle("Angel Dust");
+	pSettings->setFullScreen(true);
+	pSettings->setAlwaysOnTop(false);
 }
 
 void DS4ParticlesApp::setup()
@@ -60,6 +61,12 @@ void DS4ParticlesApp::keyDown(KeyEvent pEvent)
 {
 	switch (pEvent.getChar())
 	{
+	case 'q':
+		quit();
+		break;
+	case 'f':
+		setFullScreen(!isFullScreen());
+		break;
 	case 'd':
 		mIsDebug = !mIsDebug;
 		break;
@@ -241,7 +248,7 @@ void DS4ParticlesApp::setupGUI()
 		mBGAlpha = 0.5f;
 		mColorMode = COLOR_MODE_BLUE;
 	}
-	mGUI = params::InterfaceGl::create("Config", Vec2i(250, 550));
+	mGUI = params::InterfaceGl::create("Config", Vec2i(250, 320));
 	mGUI->addText("Depth Params");
 	mGUI->addParam("Min Depth", &mDepthMin,"min=0 max=1000 step=10");
 	mGUI->addParam("Max Depth", &mDepthMax, "min=1500 max=5000 step=10");
