@@ -190,8 +190,9 @@ void DS4ParticlesApp::setupScene()
 	mMatPrev = cv::Mat::zeros(S_DEPTH_SIZE.y, S_DEPTH_SIZE.x, CV_8U(1));
 
 	mCamera.setPerspective(45.0f, getWindowAspectRatio(), 100, 4000);
-	mCamera.setEyePoint(Vec3f(0, 705, -731));
-	mCamera.setViewDirection(Vec3f(0, -0.43f, 0.903f));
+	mCamera.setFovHorizontal(35.0f);
+	mCamera.setEyePoint(Vec3f(0, 606.351, -757.588));
+	mCamera.setViewDirection(Vec3f(0, -0.366f, 0.930f));
 	mCamera.setWorldUp(Vec3f(0, 1, 0));
 	mMayaCam.setCurrentCam(mCamera);
 
@@ -240,7 +241,7 @@ void DS4ParticlesApp::setupGUI()
 		mBGAlpha = 0.5f;
 		mColorMode = COLOR_MODE_BLUE;
 	}
-	mGUI = params::InterfaceGl::create("Config", Vec2i(250, 520));
+	mGUI = params::InterfaceGl::create("Config", Vec2i(250, 550));
 	mGUI->addText("Depth Params");
 	mGUI->addParam("Min Depth", &mDepthMin,"min=0 max=1000 step=10");
 	mGUI->addParam("Max Depth", &mDepthMax, "min=1500 max=5000 step=10");
@@ -258,10 +259,10 @@ void DS4ParticlesApp::setupGUI()
 	mGUI->addParam("Max Bolt Brightness", &mBoltAlphaMax, "min=0.05 max=1.0 step=0.01");
 	mGUI->addSeparator();
 	mGUI->addText("Particle Params");
-	mGUI->addParam("Particle Count", &mNumParticles, "min=0 max=10000 step=100");
+	mGUI->addParam("Particle Count", &mNumParticles, "min=0 max=40000 step=100");
 	mGUI->addParam("Particle Size", &mParticleSize, "min=0.1 max=10 step=0.1");
 	mGUI->addParam("Particle Brightness", &mParticleAlpha, "min=0.01 max=1 step=0.01");
-	mGUI->addParam("Min Age", &mAgeMin, "min=0 max=30 step=1");
+	mGUI->addParam("Min Age", &mAgeMin, "min=0 max=150 step=1");
 	mGUI->addParam("Max Age", &mAgeMax, "min=60 max=600 step=15");
 	mGUI->addParam("Spawn Rate", &mFramesSpawn, "min=1 max=10 step=1");
 	mGUI->addParam("Spawn Level", &mSpawnLevel, "min=0 max=1 step=0.01");
@@ -272,6 +273,7 @@ void DS4ParticlesApp::setupGUI()
 	mGUI->addParam("Logo Brightness", &mLogoAlpha, "min=0.1 max=1.0 step=0.1");
 	mGUI->addParam("Show Background", &mDrawBackground);
 	mGUI->addParam("Background Brightness", &mBGAlpha, "min=0.1 max=1.0 step=0.1");
+	mGUI->addSeparator();
 	mGUI->addButton("Save Settings", std::bind(&DS4ParticlesApp::writeConfig, this));
 	mXDDLogo = gl::Texture(loadImage(loadAsset("xDDBadge.png")));
 	mCinderLogo = gl::Texture(loadImage(loadAsset("cinderBadge.png")));
@@ -581,8 +583,13 @@ void DS4ParticlesApp::updateCV()
 						{
 							float cInPoint[] = { static_cast<float>(cPoint.x), static_cast<float>(cPoint.y), cZ }, cOutPoint[3];
 							DSTransformFromZImageToZCamera(mZIntrinsics, cInPoint, cOutPoint);
-							if (mParticleSystem.count() < mNumParticles&&cOutPoint[1] < 50&&mMagMean>mSpawnLevel)
-								mParticleSystem.add(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]), Vec3f(randFloat(-0.15f, 0.15f), randFloat(-2, -6), randFloat(0, -1)), Vec2f(mAgeMin, mAgeMax));
+							if (mParticleSystem.count() < mNumParticles&&cOutPoint[1] < 50 && mMagMean>mSpawnLevel)
+							{
+								if (vi%20==0)
+									mParticleSystem.add(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]), Vec3f(randFloat(-0.15f, 0.15f), randFloat(-1.5f, -5.9f), randFloat(0, -1)), Vec2f(180, 180), mParticleAlpha, (getElapsedFrames()%90==0));
+								else
+									mParticleSystem.add(Vec3f(cOutPoint[0], -cOutPoint[1], cOutPoint[2]), Vec3f(randFloat(-0.15f, 0.15f), randFloat(-2, -6), randFloat(0, -1)), Vec2f(mAgeMin, mAgeMax), mParticleAlpha, false);
+							}
 						}
 					}
 				}
@@ -731,15 +738,11 @@ void DS4ParticlesApp::drawRunning()
 	}
 	gl::end();
 
-	//Particles
+	//
 	glPointSize(mParticleSize);
-	if (mColorMode == COLOR_MODE_BLUE || mColorMode == COLOR_MODE_GOLD_P)
-		gl::color(ColorA(mIntelBlue.r, mIntelBlue.g, mIntelBlue.b, mParticleAlpha));
-	else if (mColorMode == COLOR_MODE_GOLD || mColorMode == COLOR_MODE_BLUE_P)
-		gl::color(ColorA(mIntelYellow.r, mIntelYellow.g, mIntelYellow.b, mParticleAlpha));
 	mParticleSystem.display();
 	gl::popMatrices();
-
+	//
 	if (mCamInfo)
 		drawCamInfo();
 

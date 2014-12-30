@@ -1,0 +1,69 @@
+<html>
+<title>DS4Particles Help</title>
+<header>
+</header
+<hr/>
+<body>
+<font face="Calibri">
+<div>
+<h1>Menu Options (Enter and Exit Debug View by pressing "d")</h1>
+<center>
+<img src="images\options.png" width="960px"/>
+</center>
+</div>
+<div>
+<ul>
+<li><h3>Depth Params</h3>
+	<ul>
+	<li><b>Min / Max Depth</b> - These values indicate the depth range in millimeters that the application will consider valid for point cloud generation.  For example, to clip depth at 3 meters, set <b>Min Depth</b> to <b>0</b> and <b>Max Depth</b> to <b>3000</b>.
+	<li><b>Threshold</b> - This value can be used to fine tune the depth pixels prior to point cloud generation.  Initially, the application remaps all the pixels within the valid depth range to gray scale values (0 to 255) for OpenCV processing.  <b>Threshold</b> will cull out any pixel that's below the given value.  Valid values for <b>Threshold</b> are <b>0</b> to <b>255</b>.
+	<li><b>Min Poly Area</b> - This value is used to tune the application's "motion sensitivity".  To detect subtler motions, set this value to a lower value, for more gross motions, set this to a higher value.  Valid values are above <b>0</b>.
+	</ul>
+<li><h3>Point Cloud Params</h3>
+	<ul>
+	<li><b>Cloud Res</b> - Determines the density of the point cloud, i.e. for a <b>Cloud Res</b> value of <b>n</b>, draw every <b>nth</b> point in the depth buffer, meaning higher values will create sparser clouds.  Suggested values are <b>2, 4, 8, and 16</b>.
+	<li><b>Bolt Res</b> - Similar to Cloud Res, this determines the density of the "energy bolt" effect.  Suggested values are <b>1, 2, and 4</b>.
+	<li><b>Spawner Res</b> - Determines the density of spawned particles.  Particles are spawned along the "energy bolt" effects, for a <b>Spawner Res</b> value of <b>n</b>, spawn a particle on every <b>nth</b> point of an "energy bolt".  Suggested values are <b>2 and 4</b>.
+	<li><b>Point Size</b> - Determines the size of individual points in the point cloud.  Suggested values are between <b>2.0 and 5.0</b>.
+	<li><b>Min / Max Bolt Width &amp;	Min / Max Bolt Brightness</b> - The actual "energy bolt" width and brightness for a given frame are determined by the level of the incoming audio.  The <b>Min</b> values correspond to lower levels of audio while the <b>Max</b> values correspond to higher levels of audio.  Valid values for <b>Bolt Brightness</b> are between <b>0 and 1</b>, suggested values for <b>Bolt Width</b> are between <b>0.5 and 6.0</b>.
+	</ul>
+<li><h3>Particle Params</h3>
+	<ul>
+	<li><b>Particle Count</b> - The number of active particles in the scene.  Higher numbers may cause drops in performance, the suggested value for <b>Particle Count</b> is between <b>5000 and 20000</b>.
+	<li><b>Particle Size</b> - Determines how large or small particles are drawn.  This is a global setting, individual particles do not have individual sizes.  The suggested value for Particle Size is between <b>1.0 and 4.0</b>.
+	<li><b>Particle Brightness</b> - Determines the maximum starting brightness for each particle.  Upon creation, each particle is assigned a starting brightness value between <b>0.1 and Particle Brightness</b>.  Valid values for <b>Particle Brightness</b> are between <b>0.0 and 1.0</b>. 
+	<li><b>Min / Max Age</b> - How long each particle lives.  Upon creation, each particle is assigned a random value between <b>Min Age and Max Age</b>.  Each number indicates a range of frames, by default, the application runs at 60 frames per second.  E.g., a <b>Min Age of 60</b> and a <b>Max Age of 300</b> means the particle's lifespan will be somewhere between 1 and 5 seconds.  Because of the window size and camera field of view, values greater than about <b>180 (3 seconds)</b> don't really make sense, as the particle will more than likely be offscreen by then.
+	<li><b>Spawn Rate</b> - Determines how often particles are spawned, i.e. for a Spawn Rate value of <b>n</b>, spawn particles every <b>nth</b> frame.  Suggested values for <b>Spawn Rate</b> are between <b>1 and 5</b>.
+	<li><b>Spawn Level</b> - Determines the level of the incoming audio that will cause particles to spawn.  For more frequent spawns, set this to something lower, for less frequent spawns set this to a higher value.  Setting this to <b>0.0</b> will cause particles to always spawn, setting this to <b>1.0</b> will cause particles to almost never spawn.  Valid values for <b>Spawn Level</b> are between <b>0.0 and 1.0</b>.
+	</ul>
+<li><h3>Logo/Background Params</h3>
+	<ul>
+	<li><b>Show Logo</b> - Toggles the visibility of the corner "RealSense" logo.  This can also be set from the runtime view by pressing the <b>"l"</b> key.
+	<li><b>Logo Size</b> - Sets the width of the corner "RealSense" logo, height is derived from width.  This can also be set from the runtime view by pressing the <b>"a"</b> and <b>"s"</b> keys.
+	<li><b>Logo Brightness</b> - Sets the transparency of the corner "RealSense" logo.  This can also be set from the runtime view by pressing the <b>"Ctrl+a"</b> and <b>"Ctrl+s"</b> key combinations.  Valid values for <b>Logo Brightness</b> are between <b>0.0 and 1.0</b>.
+	<li><b>Show Background</b> - Toggles the visibility of the background gradient.  This can also be set from the runtime view by pressing the <b>"b"</b> key.
+	<li><b>Background Brightness</b> - Sets the transparency of the background gradient.  This can also be set from the runtime view by pressing the <b>"Ctrl+z"</b> and <b>"Ctrl+x"</b> key combinations.  Valid values for <b>Logo Brightness</b> are between <b>0.0 and 1.0</b>.
+	</ul>
+</ul>
+</div>
+<br/>
+<div>
+<h1>Keyboard Options</h1>
+<center>
+<img src="images\running.png" width="960px"/>
+</center>
+</div>
+<div>
+<ul>
+<li><b>"b"</b> - Toggle background gradient
+<li><b>"c"</b> - Change point cloud color scheme
+<li><b>"d"</b> - Enter/exit debug mode
+<li><b>"l"</b> - Toggle corner logo
+<li><b>"a", "s"</b> - Increase/decrease logo size
+<li><b>ctrl+"a", ctrl+"s"</b> - Increase/decrease logo brightness
+<li><b>ctrl+"z", ctrl+"x"</b> - Increase/decrease background brightness
+</ul>
+</div>
+</font>
+</body>
+</html>

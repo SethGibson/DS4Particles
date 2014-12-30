@@ -11,17 +11,19 @@ class DS4Particle
 {
 public:
 	DS4Particle();
-	DS4Particle(Vec3f pPos, Vec3f pVel, int pAge);
-	~DS4Particle();
+	DS4Particle(Vec3f pPos, Vec3f pVel, int pAge, float pMaxAlpha, bool pIsMica);
 
 	void step();
 
-	bool IsActive;
+	bool IsActive, IsMica;
 	Vec3f PPosition;
 	Vec3f PVelocity;
+	ColorA PColor;
 
 private:
-	int mAge;
+	int mAge, mLife;
+	ColorA mStartColor;
+	ColorA mEndColor;
 };
 
 class DS4ParticleSystem
@@ -32,7 +34,7 @@ public:
 
 	void step();
 	void display();
-	void add(Vec3f pPos, Vec3f pVel, Vec2i pAge);
+	void add(Vec3f pPos, Vec3f pVel, Vec2i pAge, float pAlpha, bool pIsMica);
 	void add(DS4Particle pParticle);
 	inline size_t count() { return mParticles.size(); }
 
