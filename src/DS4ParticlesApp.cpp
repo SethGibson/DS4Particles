@@ -19,7 +19,7 @@ void DS4ParticlesApp::prepareSettings(Settings *pSettings)
 	pSettings->setWindowPos(20, 40);
 	pSettings->setFrameRate(60);
 	pSettings->setTitle("Angel Dust");
-	pSettings->setFullScreen(true);
+	pSettings->setFullScreen(false);
 	pSettings->setAlwaysOnTop(false);
 }
 
@@ -55,6 +55,8 @@ void DS4ParticlesApp::resize()
 	mArcball.setWindowSize(getWindowSize());
 	mArcball.setCenter(Vec2f(getWindowWidth() / 2.0f, getWindowHeight() / 2.0f));
 	mArcball.setRadius(500);
+	mCamera.setAspectRatio(getWindowAspectRatio());
+	mMayaCam.setCurrentCam(mCamera);
 }
 
 void DS4ParticlesApp::keyDown(KeyEvent pEvent)
@@ -193,7 +195,7 @@ void DS4ParticlesApp::setupScene()
 {
 	mDepthPixels = new uint8_t[S_DEPTH_SIZE.x*S_DEPTH_SIZE.y]{0};
 	mPrevDepthBuffer = new uint16_t[S_DEPTH_SIZE.x*S_DEPTH_SIZE.y];
-	mMatCurrent = cv::Mat::zeros(S_DEPTH_SIZE.y, S_DEPTH_SIZE.x, CV_8U(1));
+	//mMatCurrent = cv::Mat::zeros(S_DEPTH_SIZE.y, S_DEPTH_SIZE.x, CV_8U(1));
 	mMatPrev = cv::Mat::zeros(S_DEPTH_SIZE.y, S_DEPTH_SIZE.x, CV_8U(1));
 
 	mCamera.setPerspective(45.0f, getWindowAspectRatio(), 100, 4000);
